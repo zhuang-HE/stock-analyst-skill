@@ -1,10 +1,11 @@
-# Stock Analyst - 股票分析Skill
+# Stock Analyst - 股票分析Skill v2.0
 
-基于AkShare开源金融数据库的智能股票分析工具，支持四维分析体系（技术面、基本面、资金面、消息面）。
+基于AkShare开源金融数据库的智能股票分析工具，支持增强版四维分析体系（技术面、基本面、资金面、消息面）。
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![AkShare](https://img.shields.io/badge/Data-AkShare-orange.svg)
+![Version](https://img.shields.io/badge/Version-2.0-brightgreen.svg)
 
 ## ✨ 功能特性
 
@@ -13,9 +14,9 @@
 | 分析维度 | 指标 | 说明 |
 |:---------|:-----|:-----|
 | **技术面** | KDJ、MACD、RSI、MA均线 | 价格趋势判断 |
-| **基本面** | 涨跌幅、波动率、估值 | 中长期价值判断 |
+| **基本面** | 财务多期数据、估值PE/PB、行业识别、盈利预测、资产负债 | 中长期价值判断 |
 | **资金面** | 主力净流入/流出 | 资金动向分析 |
-| **消息面** | 新闻、公告、大宗交易 | 影响因子分析 |
+| **消息面** | 新闻、公告、大宗交易 + 基本面影响评估 | 影响因子分析 |
 
 ### 📈 输出内容
 
