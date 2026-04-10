@@ -1,8 +1,9 @@
 ---
 name: stock-analyst
-description: 股票分析Skill，基于AkShare真实数据，支持A股/港股/美股的行情查询、技术分析、基本面分析、资金面分析和消息面分析。触发词：股票分析、查股票、分析股票、行情查询、股票代码、A股、港股、美股、K线、技术指标、MACD、KDJ、RSI、均线
-author: WorkBuddy
 version: 1.0.0
+description: 基于AkShare的智能股票分析，支持A股/港股/美股四维分析(技术面/基本面/资金面/消息面)
+author: zhuang-HE
+homepage: https://github.com/zhuang-HE/stock-analyst-skill
 tags:
   - 股票
   - 金融
@@ -41,3 +42,18 @@ updated: 2026-04-10
 - `002149` - 西部材料
 - `0700.HK` - 腾讯控股
 - `AAPL` - 苹果公司
+
+或使用命令行：
+```bash
+python scripts/full_analysis.py 000001
+```
+
+## 依赖
+
+```bash
+pip install akshare pandas
+```
+
+## 免责声明
+
+本工具仅供学习和研究使用，数据仅供参考，不构成投资建议。股市有风险，投资需谨慎。
