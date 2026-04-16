@@ -261,6 +261,11 @@ stock-analyst/
 │   ├── pattern_report.py      # 形态分析报告
 │   ├── technical_report.py    # 技术面报告
 │   └── unified_report_template.py  # 🆕 V3.2 统一报告模板
+├── data_adapter/               # 🆕 V3.3 数据适配层
+│   ├── __init__.py
+│   ├── adapter.py             # 核心适配器（数据转换）
+│   ├── fallback.py            # 多数据源备用管理
+│   └── sources.py             # 数据源接口定义
 └── scripts/
     ├── full_analysis.py       # 完整五维分析
     ├── stock_analysis.py      # 标准分析
@@ -501,6 +506,7 @@ stock-analyst/
 
 | 版本 | 日期 | 更新内容 |
 |:-----|:-----|:---------|
+| **v3.3** | 2026-04-17 | 🏗️ 数据适配层：自动转换 finance-data-retrieval 数据格式、多数据源备用机制（AkShare/Tushare/Baostock/本地缓存） |
 | **v3.2.1** | 2026-04-17 | ⚡ Token优化：新增`output_format`参数按需生成报告、极简HTML样式、纯文本简化版 |
 | **v3.2 Ultra** | 2026-04-17 | 🆕 强化形态面分析（数据来源验证、置信度评估）、优化资金面分析（20日时效性）、新增独立资金面板块 |
 | v3.1 | 2026-04-16 | 新增交易形态识别和建议策略板块（K线形态、缠论、信号共振、情绪指数） |
