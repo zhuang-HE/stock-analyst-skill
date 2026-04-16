@@ -165,7 +165,26 @@ pip install akshare pandas numpy
 
 ### 使用方法
 
-#### WorkBuddy中使用
+#### 方式1：使用数据适配层（推荐 V3.3+）
+
+无需直接依赖AkShare，通过 `finance-data-retrieval` 获取数据：
+
+```python
+from data_adapter import DataAdapter
+from templates.unified_report_template import generate_unified_report
+
+# 创建适配器
+adapter = DataAdapter()
+
+# 获取完整数据（自动转换格式）
+data, pattern_data = adapter.get_complete_data('002149', '西部材料')
+
+# 生成报告
+report = generate_unified_report(data, pattern_data, output_format='text')
+print(report['text'])
+```
+
+#### 方式2：WorkBuddy中使用
 
 ```
 分析 000001              # 分析平安银行（含形态识别）
