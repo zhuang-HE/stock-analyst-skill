@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 ================================================================================
-统一专业股票分析报告模板 V3.1 Pro
+统一专业股票分析报告模板 V3.1 Pro Max
 ================================================================================
 同时生成HTML和Markdown格式，内容统一、专业、功能完备
 
@@ -19,7 +19,7 @@
 ├── 六、综合投资决策建议（评分、优势、风险、策略、总结）
 └── 附录：风险提示与免责声明
 
-作者：Stock Analyst Skill V3.1
+作者：Stock Analyst Skill V3.1 Pro Max
 ================================================================================
 """
 from typing import Dict, List, Any, Optional, Tuple
@@ -29,13 +29,14 @@ import json
 
 class UnifiedReportGenerator:
     """
-    统一专业报告生成器
+    统一专业报告生成器 V3.1 Pro Max
     
     特性：
     - 双格式输出：HTML（可视化）+ Markdown（可读性）
     - 五维分析体系：技术/基本面/资金/消息/形态
     - 形态面深度强化：K线形态+缠论+买卖点+共振评分
     - 专业级内容：财务解读、技术指标、投资策略
+    - 数据接口完备：支持所有分析模块的数据结构
     """
     
     # 评级标准
@@ -91,10 +92,32 @@ class UnifiedReportGenerator:
                 return f"{emoji} {level}({direction})", emoji, desc
         return '⚫ 无共振', '⚫', '各维度信号分散'
     
-    # ==================== Markdown格式生成 ====================
+    # ==================== 统一报告生成 ====================
+    
+    def generate_unified_report(self) -> Dict[str, str]:
+        """
+        生成统一报告（同时返回HTML和Markdown）
+        
+        Returns:
+            {'html': html_content, 'markdown': md_content}
+        """
+        return {
+            'html': self.generate_html(),
+            'markdown': self.generate_markdown()
+        }
+    
+    def generate_html(self) -> str:
+        """生成专业HTML格式报告"""
+        return self._generate_html_report()
     
     def generate_markdown(self) -> str:
         """生成专业Markdown格式报告"""
+        return self._generate_markdown_report()
+    
+    # ==================== Markdown格式生成 ====================
+    
+    def _generate_markdown_report(self) -> str:
+        """生成完整Markdown报告"""
         sections = [
             self._md_header(),
             self._md_executive_summary(),
@@ -121,7 +144,7 @@ class UnifiedReportGenerator:
 
 <div align="center">
 
-**专业版股票分析报告** | **五维分析体系** | **V3.1 Pro**
+**专业版股票分析报告** | **五维分析体系** | **V3.1 Pro Max**
 
 📅 报告生成时间：{self.timestamp}
 
@@ -135,7 +158,7 @@ class UnifiedReportGenerator:
 |:-----|:-----|
 | **股票名称** | {self.stock_name} ({self.code}) |
 | **分析维度** | 技术面 / 基本面 / 资金面 / 消息面 / **形态面** |
-| **报告版本** | V3.1 Pro 专业版 |
+| **报告版本** | V3.1 Pro Max 专业版 |
 | **数据时效** | 实时行情 + 最新财报 + 近期新闻 |"""
     
     def _md_executive_summary(self) -> str:
@@ -276,9 +299,10 @@ class UnifiedReportGenerator:
         open_p = quote.get('open', 0)
         high = quote.get('high', 0)
         low = quote.get('low', 0)
+        prev_close = quote.get('prev_close', 0)
         
         # 计算振幅
-        amplitude = ((high - low) / open_p * 100) if open_p > 0 else 0
+        amplitude = ((high - low) / prev_close * 100) if prev_close > 0 else 0
         
         # 走势解读
         trend_analysis = self._analyze_trend_detailed(pct_change, volume, amplitude)
@@ -291,20 +315,22 @@ class UnifiedReportGenerator:
 |:-----|:-----|:-----|:-----|:-----|:-----|
 | **最新价** | ¥{price:.2f} | **涨跌幅** | {pct_change:+.2f}% | **涨跌额** | ¥{price * pct_change / 100:.2f} |
 | **开盘价** | ¥{open_p:.2f} | **最高价** | ¥{high:.2f} | **最低价** | ¥{low:.2f} |
-| **成交量** | {volume:,.0f} 手 | **成交额** | {amount:.2f} 亿 | **换手率** | {turnover:.2f}% |
-| **振幅** | {amplitude:.2f}% | **量比** | {quote.get('volume_ratio', '-')} | **市盈率** | {quote.get('pe', '-')} |
+| **昨收价** | ¥{prev_close:.2f} | **振幅** | {amplitude:.2f}% | **换手率** | {turnover:.2f}% |
+| **成交量** | {volume:,.0f} 手 | **成交额** | {amount:.2f} 亿 | **量比** | {quote.get('volume_ratio', '-')} |
+| **市盈率(TTM)** | {quote.get('pe', '-')} | **市净率** | {quote.get('pb', '-')} | **总市值** | {quote.get('market_cap', '-')} 亿 |
 
 ### 1.2 技术走势分析
 
 {trend_analysis}
 
-### 1.3 关键价位
+### 1.3 关键价位分析
 
-| 价位类型 | 价格 | 说明 |
-|:---------|:-----|:-----|
-| **当日支撑** | ¥{low:.2f} | 日内最低点 |
-| **当日阻力** | ¥{high:.2f} | 日内最高点 |
-| **开盘价** | ¥{open_p:.2f} | 多空分水岭 |"""
+| 价位类型 | 价格 | 与现价关系 | 技术意义 |
+|:---------|:-----|:-----------|:---------|
+| **当日阻力** | ¥{high:.2f} | +{((high-price)/price*100):.2f}% | 日内最高点，短期压力 |
+| **当日支撑** | ¥{low:.2f} | {((low-price)/price*100):+.2f}% | 日内最低点，短期支撑 |
+| **开盘价** | ¥{open_p:.2f} | {((open_p-price)/price*100):+.2f}% | 多空分水岭 |
+| **昨收价** | ¥{prev_close:.2f} | {((prev_close-price)/price*100):+.2f}% | 基准参考价 |"""
     
     def _analyze_trend_detailed(self, pct_change: float, volume: float, amplitude: float) -> str:
         """详细走势分析"""
@@ -312,37 +338,37 @@ class UnifiedReportGenerator:
         
         # 涨跌分析
         if pct_change > 7:
-            analysis.append("📈 **强势上涨**：涨幅超过7%，多头力量强劲，可能受重大利好消息刺激")
+            analysis.append("📈 **强势上涨**：涨幅超过7%，多头力量强劲，可能受重大利好消息刺激。建议关注成交量配合情况，若放量上涨则趋势可信度高。")
         elif pct_change > 4:
-            analysis.append("📈 **明显上涨**：涨幅4-7%，走势积极，市场认可度较高")
+            analysis.append("📈 **明显上涨**：涨幅4-7%，走势积极，市场认可度较高。关注能否突破前期阻力位，形成新的上升趋势。")
         elif pct_change > 2:
-            analysis.append("📈 **温和上涨**：涨幅2-4%，稳步上行，趋势健康")
+            analysis.append("📈 **温和上涨**：涨幅2-4%，稳步上行，趋势健康。属于正常的技术性上涨，可持续性较好。")
         elif pct_change > 0:
-            analysis.append("📊 **小幅上涨**：涨幅0-2%，上涨动能一般")
+            analysis.append("📊 **小幅上涨**：涨幅0-2%，上涨动能一般。可能是技术性反弹或跟随大盘上涨，需观察持续性。")
         elif pct_change > -2:
-            analysis.append("📊 **小幅回调**：跌幅0-2%，正常波动范围")
+            analysis.append("📊 **小幅回调**：跌幅0-2%，正常波动范围。属于健康的技术性调整，不必过度担心。")
         elif pct_change > -4:
-            analysis.append("📉 **温和回调**：跌幅2-4%，需关注支撑位承接力度")
+            analysis.append("📉 **温和回调**：跌幅2-4%，需关注支撑位承接力度。若缩量回调，可能是洗盘行为。")
         elif pct_change > -7:
-            analysis.append("📉 **明显下跌**：跌幅4-7%，空头占优，谨慎观望")
+            analysis.append("📉 **明显下跌**：跌幅4-7%，空头占优，谨慎观望。关注是否有利空消息刺激，以及支撑位是否有效。")
         else:
-            analysis.append("📉 **大幅下跌**：跌幅超过7%，恐慌情绪蔓延，建议避险")
+            analysis.append("📉 **大幅下跌**：跌幅超过7%，恐慌情绪蔓延，建议避险。若放量下跌，可能还有进一步调整空间。")
         
         # 振幅分析
         if amplitude > 7:
-            analysis.append("⚡ **高波动**：日内振幅超过7%，多空分歧激烈，短线操作机会与风险并存")
+            analysis.append("⚡ **高波动**：日内振幅超过7%，多空分歧激烈，短线操作机会与风险并存。适合有经验的投资者进行T+0操作。")
         elif amplitude > 4:
-            analysis.append("📊 **中等波动**：日内振幅4-7%，正常交易波动")
+            analysis.append("📊 **中等波动**：日内振幅4-7%，正常交易波动。提供一定的操作空间，适合波段操作。")
         else:
-            analysis.append("💤 **低波动**：日内振幅小于4%，市场观望情绪较浓")
+            analysis.append("💤 **低波动**：日内振幅小于4%，市场观望情绪较浓。可能是变盘前的蓄势，需密切关注方向选择。")
         
         # 成交量分析
         if volume > 2000000:
-            analysis.append("💰 **成交活跃**：成交量显著放大，资金参与度高，趋势可信度强")
+            analysis.append("💰 **成交活跃**：成交量显著放大，资金参与度高，趋势可信度强。量价配合良好，支撑当前走势。")
         elif volume > 800000:
-            analysis.append("💰 **成交正常**：成交量处于正常水平")
+            analysis.append("💰 **成交正常**：成交量处于正常水平。市场参与度适中，走势较为健康。")
         else:
-            analysis.append("💤 **成交清淡**：成交量偏低，市场参与度不足，趋势持续性存疑")
+            analysis.append("💤 **成交清淡**：成交量偏低，市场参与度不足，趋势持续性存疑。建议等待放量确认。")
         
         return '\n\n'.join(f"{i+1}. {a}" for i, a in enumerate(analysis))
     
@@ -351,12 +377,15 @@ class UnifiedReportGenerator:
         fundamental = self.data.get('fundamental', {})
         fin = fundamental.get('financial', {})
         latest = fin.get('latest', {})
+        history = fin.get('history', [])
         
         if not latest:
             return "## 💼 二、财务深度分析\n\n> 暂无财务数据"
         
         report_date = latest.get('report_date', 'N/A')
+        revenue = latest.get('revenue', 'N/A')
         revenue_yoy = latest.get('revenue_yoy', 'N/A')
+        profit = latest.get('net_profit', 'N/A')
         profit_yoy = latest.get('net_profit_yoy', 'N/A')
         roe = latest.get('roe', 'N/A')
         gross_margin = latest.get('gross_margin', 'N/A')
@@ -371,6 +400,9 @@ class UnifiedReportGenerator:
         # 趋势解读
         trend_analysis = self._interpret_financial_trend(revenue_yoy, profit_yoy, roe)
         
+        # 历史数据表格
+        history_table = self._generate_financial_history_table(history)
+        
         return f"""## 💼 二、财务深度分析
 
 ### 2.1 核心财务数据（报告期：{report_date}）
@@ -379,10 +411,14 @@ class UnifiedReportGenerator:
 
 | 指标 | 数值 | 同比变化 | 指标 | 数值 | 健康度 |
 |:-----|:-----|:---------|:-----|:-----|:-------|
-| **营业收入** | - | {revenue_yoy} | **毛利率** | {gross_margin} | {self._rate_indicator(gross_margin, 30, 20)} |
-| **净利润** | - | {profit_yoy} | **净利率** | {net_margin} | {self._rate_indicator(net_margin, 15, 8)} |
+| **营业收入** | {revenue} | {revenue_yoy} | **毛利率** | {gross_margin} | {self._rate_indicator(gross_margin, 30, 20)} |
+| **净利润** | {profit} | {profit_yoy} | **净利率** | {net_margin} | {self._rate_indicator(net_margin, 15, 8)} |
 | **ROE** | {roe} | - | **资产负债率** | {debt_ratio} | {self._rate_debt(debt_ratio)} |
-| **每股收益** | {eps} 元 | - | **每股现金流** | {ocf_ps} 元 | - |
+| **每股收益** | {eps} 元 | - | **每股现金流** | {ocf_ps} 元 | {self._rate_indicator(ocf_ps, 1, 0.5)} |
+
+#### 历史财务数据趋势
+
+{history_table}
 
 ### 2.2 财务质量深度评估
 
@@ -392,7 +428,7 @@ class UnifiedReportGenerator:
 
 {trend_analysis}
 
-### 2.4 业务板块分析
+### 2.4 业务板块与估值分析
 
 基于财务数据分析，公司业务呈现以下特征：
 
@@ -400,7 +436,46 @@ class UnifiedReportGenerator:
 **成长能力**：{self._growth_assessment(revenue_yoy, profit_yoy)}
 **盈利能力**：{self._profitability_assessment(roe, net_margin)}
 **财务健康**：{self._health_assessment(debt_ratio)}
-**现金流**：{self._cashflow_assessment(ocf_ps, eps)}"""
+**现金流**：{self._cashflow_assessment(ocf_ps, eps)}
+
+**估值分析**：
+- PE(TTM)：{latest.get('pe', 'N/A')} | PB：{latest.get('pb', 'N/A')}
+- 历史PE分位数：{latest.get('pe_percentile', 'N/A')} | 历史PB分位数：{latest.get('pb_percentile', 'N/A')}
+- 估值结论：{self._valuation_assessment(latest)}"""
+    
+    def _generate_financial_history_table(self, history: List[Dict]) -> str:
+        """生成历史财务数据表格"""
+        if not history:
+            return "> 暂无历史数据"
+        
+        rows = []
+        for item in history[:5]:
+            rows.append(
+                f"| {item.get('report_date', '-')} | {item.get('revenue_yoy', '-')} | "
+                f"{item.get('net_profit_yoy', '-')} | {item.get('roe', '-')} | "
+                f"{item.get('gross_margin', '-')} | {item.get('net_margin', '-')} |"
+            )
+        
+        return f"""| 报告期 | 营收同比 | 净利润同比 | ROE | 毛利率 | 净利率 |
+|:-------|:---------|:-----------|:----|:-------|:-------|
+{chr(10).join(rows)}"""
+    
+    def _valuation_assessment(self, latest: Dict) -> str:
+        """估值评估"""
+        try:
+            pe = float(str(latest.get('pe', '0')).replace('x', ''))
+            pe_pct = float(str(latest.get('pe_percentile', '0')).replace('%', ''))
+            
+            if pe < 15 and pe_pct < 30:
+                return "估值偏低，具备安全边际"
+            elif pe < 25 and pe_pct < 50:
+                return "估值合理，处于历史中枢"
+            elif pe > 40 or pe_pct > 80:
+                return "估值偏高，注意追高风险"
+            else:
+                return "估值适中，需结合成长性判断"
+        except:
+            return "估值数据待评估"
     
     def _rate_indicator(self, value: str, good_threshold: float, fair_threshold: float) -> str:
         """评级指标"""
@@ -438,13 +513,13 @@ class UnifiedReportGenerator:
             try:
                 roe_val = float(str(roe).replace('%', ''))
                 if roe_val > 20:
-                    analyses.append(f"🟢 **盈利能力卓越**：ROE为{roe}，远超20%的优秀线，股东回报能力突出")
+                    analyses.append(f"🟢 **盈利能力卓越**：ROE为{roe}，远超20%的优秀线，股东回报能力突出，属于高质量成长股。")
                 elif roe_val > 15:
-                    analyses.append(f"🟢 **盈利能力优秀**：ROE为{roe}，高于15%良好线，盈利质量较高")
+                    analyses.append(f"🟢 **盈利能力优秀**：ROE为{roe}，高于15%良好线，盈利质量较高，具备持续竞争优势。")
                 elif roe_val > 10:
-                    analyses.append(f"🟡 **盈利能力良好**：ROE为{roe}，处于10-15%区间，盈利稳定")
+                    analyses.append(f"🟡 **盈利能力良好**：ROE为{roe}，处于10-15%区间，盈利稳定，属于稳健型公司。")
                 else:
-                    analyses.append(f"🔴 **盈利能力一般**：ROE为{roe}，低于10%，需关注盈利改善")
+                    analyses.append(f"🔴 **盈利能力一般**：ROE为{roe}，低于10%，需关注盈利改善，可能处于行业周期低谷。")
             except:
                 pass
         
@@ -454,11 +529,11 @@ class UnifiedReportGenerator:
             try:
                 margin_val = float(str(margin).replace('%', ''))
                 if margin_val > 40:
-                    analyses.append(f"🟢 **产品竞争力强**：毛利率{margin}，产品议价能力突出")
+                    analyses.append(f"🟢 **产品竞争力强**：毛利率{margin}，产品议价能力突出，具备定价权优势。")
                 elif margin_val > 25:
-                    analyses.append(f"🟡 **产品竞争力良好**：毛利率{margin}，处于行业中上水平")
+                    analyses.append(f"🟡 **产品竞争力良好**：毛利率{margin}，处于行业中上水平，盈利能力稳定。")
                 else:
-                    analyses.append(f"⚪ **产品竞争力一般**：毛利率{margin}，行业竞争激烈")
+                    analyses.append(f"⚪ **产品竞争力一般**：毛利率{margin}，行业竞争激烈，成本控制压力大。")
             except:
                 pass
         
@@ -468,13 +543,13 @@ class UnifiedReportGenerator:
             try:
                 debt_val = float(str(debt).replace('%', ''))
                 if debt_val < 35:
-                    analyses.append(f"🟢 **财务结构稳健**：资产负债率{debt}，财务风险低，融资空间大")
+                    analyses.append(f"🟢 **财务结构稳健**：资产负债率{debt}，财务风险低，融资空间大，抗风险能力强。")
                 elif debt_val < 50:
-                    analyses.append(f"🟡 **财务结构适中**：资产负债率{debt}，处于合理区间")
+                    analyses.append(f"🟡 **财务结构适中**：资产负债率{debt}，处于合理区间，财务杠杆使用适度。")
                 elif debt_val < 65:
-                    analyses.append(f"⚪ **财务杠杆较高**：资产负债率{debt}，需关注偿债能力")
+                    analyses.append(f"⚪ **财务杠杆较高**：资产负债率{debt}，需关注偿债能力，警惕流动性风险。")
                 else:
-                    analyses.append(f"🔴 **财务风险较高**：资产负债率{debt}，超过警戒线，谨慎关注")
+                    analyses.append(f"🔴 **财务风险较高**：资产负债率{debt}，超过警戒线，财务弹性不足，需谨慎关注。")
             except:
                 pass
         
@@ -484,11 +559,11 @@ class UnifiedReportGenerator:
             try:
                 nm_val = float(str(net_margin).replace('%', ''))
                 if nm_val > 15:
-                    analyses.append(f"🟢 **费用控制优秀**：净利率{net_margin}，成本管控能力强")
+                    analyses.append(f"🟢 **费用控制优秀**：净利率{net_margin}，成本管控能力强，运营效率高。")
                 elif nm_val > 8:
-                    analyses.append(f"🟡 **费用控制良好**：净利率{net_margin}，运营效率正常")
+                    analyses.append(f"🟡 **费用控制良好**：净利率{net_margin}，运营效率正常，费用结构合理。")
                 else:
-                    analyses.append(f"⚪ **费用控制一般**：净利率{net_margin}，存在费用优化空间")
+                    analyses.append(f"⚪ **费用控制一般**：净利率{net_margin}，存在费用优化空间，需关注三费占比。")
             except:
                 pass
         
@@ -504,33 +579,33 @@ class UnifiedReportGenerator:
             
             # 营收分析
             if rev_val > 30:
-                interpretations.append(f"📈 **营收高速增长**：同比增长{revenue}，业务扩张迅速，市场份额持续提升")
+                interpretations.append(f"📈 **营收高速增长**：同比增长{revenue}，业务扩张迅速，市场份额持续提升，处于快速成长期。")
             elif rev_val > 15:
-                interpretations.append(f"📈 **营收稳健增长**：同比增长{revenue}，增长势头良好，业务发展健康")
+                interpretations.append(f"📈 **营收稳健增长**：同比增长{revenue}，增长势头良好，业务发展健康，具备可持续性。")
             elif rev_val > 5:
-                interpretations.append(f"📊 **营收温和增长**：同比增长{revenue}，增速放缓但仍有增长")
+                interpretations.append(f"📊 **营收温和增长**：同比增长{revenue}，增速放缓但仍有增长，需关注增长动力来源。")
             elif rev_val > 0:
-                interpretations.append(f"📊 **营收微增**：同比增长{revenue}，增长乏力，需关注业务动力")
+                interpretations.append(f"📊 **营收微增**：同比增长{revenue}，增长乏力，需关注业务动力，可能面临行业天花板。")
             else:
-                interpretations.append(f"📉 **营收下滑**：同比下降{revenue}，业务承压，需警惕经营风险")
+                interpretations.append(f"📉 **营收下滑**：同比下降{revenue}，业务承压，需警惕经营风险，关注业务调整进展。")
             
             # 利润分析
             if prof_val > 50:
-                interpretations.append(f"🚀 **利润爆发增长**：同比增长{profit}，盈利能力大幅提升，经营效率显著改善")
+                interpretations.append(f"🚀 **利润爆发增长**：同比增长{profit}，盈利能力大幅提升，经营效率显著改善，业绩超预期。")
             elif prof_val > 25:
-                interpretations.append(f"📈 **利润高速增长**：同比增长{profit}，盈利质量良好，增长可持续性强")
+                interpretations.append(f"📈 **利润高速增长**：同比增长{profit}，盈利质量良好，增长可持续性强，基本面扎实。")
             elif prof_val > 10:
-                interpretations.append(f"📈 **利润稳健增长**：同比增长{profit}，盈利稳定，经营健康")
+                interpretations.append(f"📈 **利润稳健增长**：同比增长{profit}，盈利稳定，经营健康，符合预期。")
             elif prof_val > 0:
-                interpretations.append(f"📊 **利润微增**：同比增长{profit}，增速放缓，关注成本端压力")
+                interpretations.append(f"📊 **利润微增**：同比增长{profit}，增速放缓，关注成本端压力，盈利能力边际改善。")
             else:
-                interpretations.append(f"📉 **利润下滑**：同比下降{profit}，盈利承压，需关注盈利能力变化")
+                interpretations.append(f"📉 **利润下滑**：同比下降{profit}，盈利承压，需关注盈利能力变化，可能处于周期底部。")
             
             # 营收利润匹配度
             if rev_val > 0 and prof_val > rev_val * 1.5:
-                interpretations.append("💡 **盈利质量提升**：利润增速显著高于营收增速，经营杠杆效应显现，费用控制有效")
+                interpretations.append("💡 **盈利质量提升**：利润增速显著高于营收增速，经营杠杆效应显现，费用控制有效，规模效应开始体现。")
             elif rev_val > 0 and prof_val < rev_val * 0.5:
-                interpretations.append("⚠️ **盈利质量下降**：利润增速明显低于营收增速，成本费用压力增大")
+                interpretations.append("⚠️ **盈利质量下降**：利润增速明显低于营收增速，成本费用压力增大，需关注毛利率变化和三费占比。")
             
         except:
             interpretations.append("财务趋势数据待更新")
@@ -543,13 +618,13 @@ class UnifiedReportGenerator:
             rev_val = float(str(revenue).replace('%', ''))
             prof_val = float(str(profit).replace('%', ''))
             if rev_val > 20 and prof_val > 20:
-                return "高成长，营收利润双轮驱动"
+                return "高成长，营收利润双轮驱动，具备持续扩张能力"
             elif rev_val > 10 and prof_val > 10:
-                return "稳健成长，发展势头良好"
+                return "稳健成长，发展势头良好，基本面扎实"
             elif rev_val > 0 and prof_val > 0:
-                return "温和成长，增速放缓"
+                return "温和成长，增速放缓，需关注增长动力"
             else:
-                return "成长承压，需关注业务调整"
+                return "成长承压，需关注业务调整和转型进展"
         except:
             return "成长数据待评估"
     
@@ -558,11 +633,11 @@ class UnifiedReportGenerator:
         try:
             roe_val = float(str(roe).replace('%', ''))
             if roe_val > 15:
-                return "盈利能力强，ROE处于优秀水平"
+                return "盈利能力强，ROE处于优秀水平，具备竞争优势"
             elif roe_val > 10:
-                return "盈利能力良好，ROE稳定"
+                return "盈利能力良好，ROE稳定，经营健康"
             else:
-                return "盈利能力一般，ROE有提升空间"
+                return "盈利能力一般，ROE有提升空间，需关注经营改善"
         except:
             return "盈利数据待评估"
     
@@ -571,11 +646,11 @@ class UnifiedReportGenerator:
         try:
             debt_val = float(str(debt).replace('%', ''))
             if debt_val < 40:
-                return "财务结构稳健，偿债能力强"
+                return "财务结构稳健，偿债能力强，财务风险低"
             elif debt_val < 60:
-                return "财务结构适中，风险可控"
+                return "财务结构适中，风险可控，杠杆使用合理"
             else:
-                return "财务杠杆较高，需关注风险"
+                return "财务杠杆较高，需关注风险，警惕流动性压力"
         except:
             return "财务健康度待评估"
     
@@ -585,9 +660,11 @@ class UnifiedReportGenerator:
             ocf_val = float(str(ocf))
             eps_val = float(str(eps))
             if ocf_val > eps_val:
-                return "现金流健康，盈利质量高"
+                return "现金流健康，盈利质量高，回款能力好"
+            elif ocf_val > 0:
+                return "现金流一般，关注回款情况，营运资金占用"
             else:
-                return "现金流一般，关注回款情况"
+                return "现金流承压，需关注经营改善，警惕资金链风险"
         except:
             return "现金流数据待评估"
     
@@ -606,27 +683,30 @@ class UnifiedReportGenerator:
         # 市场情绪指数
         sentiment_index = 50
         sentiment_level = "中性"
+        sentiment_trend = "平稳"
         if self.pattern_data:
             sentiment_data = self.pattern_data.get('sentiment', {})
             sentiment_index = sentiment_data.get('index_value', 50)
             level = sentiment_data.get('level', {})
             sentiment_level = level.get('name', '中性') if isinstance(level, dict) else str(level)
+            sentiment_trend = sentiment_data.get('trend', '平稳')
         
         # 新闻列表
         news_analysis = []
         if items:
-            for i, item in enumerate(items[:5], 1):
+            for i, item in enumerate(items[:8], 1):
                 title = item.get('title', '')
                 date = item.get('date', '')
+                source = item.get('source', '')
                 # 简单情感判断
                 sentiment_tag = ""
-                if any(w in title for w in ['增长', '突破', '利好', '合作', '获奖', '订单']):
+                if any(w in title for w in ['增长', '突破', '利好', '合作', '获奖', '订单', '中标', '签约']):
                     sentiment_tag = "🟢 正面"
-                elif any(w in title for w in ['下滑', '亏损', '处罚', '诉讼', '减持', '风险']):
+                elif any(w in title for w in ['下滑', '亏损', '处罚', '诉讼', '减持', '风险', '警示', '下降']):
                     sentiment_tag = "🔴 负面"
                 else:
                     sentiment_tag = "⚪ 中性"
-                news_analysis.append(f"{i}. **{date}** | {sentiment_tag} | {title}")
+                news_analysis.append(f"{i}. **{date}** | {sentiment_tag} | {title} [{source}]")
         
         # 情绪解读
         sentiment_interpretation = self._interpret_sentiment_detailed(sentiment_index, sentiment_level)
@@ -635,11 +715,11 @@ class UnifiedReportGenerator:
 
 ### 3.1 市场情绪指数
 
-| 指标 | 数值 | 等级 | 交易信号 |
-|:-----|:-----|:-----|:---------|
-| **贪婪恐慌指数** | {sentiment_index:.1f}/100 | {sentiment_level} | {self._sentiment_signal(sentiment_index)} |
-| **新闻情感倾向** | {sentiment} | 得分：{sentiment_score:+d} | - |
-| **对基本面影响** | {fund_impact} | - | - |
+| 指标 | 数值 | 等级 | 趋势 | 交易信号 |
+|:-----|:-----|:-----|:-----|:---------|
+| **贪婪恐慌指数** | {sentiment_index:.1f}/100 | {sentiment_level} | {sentiment_trend} | {self._sentiment_signal(sentiment_index)} |
+| **新闻情感倾向** | {sentiment} | 得分：{sentiment_score:+d} | - | - |
+| **对基本面影响** | {fund_impact} | - | - | - |
 
 ### 3.2 最新财经新闻摘要
 
@@ -647,38 +727,48 @@ class UnifiedReportGenerator:
 
 ### 3.3 市场情绪深度解读
 
-{sentiment_interpretation}"""
+{sentiment_interpretation}
+
+### 3.4 舆情综合分析
+
+基于近期新闻舆情分析：
+- **新闻情感倾向**：{sentiment}（得分{sentiment_score:+d}）
+- **对基本面影响**：{fund_impact}
+- **市场情绪状态**：{sentiment_level}（指数{sentiment_index:.1f}）
+- **交易建议**：{self._sentiment_signal(sentiment_index)}
+
+**舆情风险提示**：新闻舆情仅供参考，不构成投资建议。重大事件需关注官方公告。"""
     
     def _interpret_sentiment_detailed(self, index: float, level: str) -> str:
         """详细情绪解读"""
         if index < 15:
             return """🔴 **极度恐慌阶段**（指数<20）
 
-市场情绪极度悲观，恐慌情绪蔓延，多数投资者选择抛售。历史数据显示，此阶段往往是中长期布局的较好时机，但需精选标的、控制仓位、分批建仓。建议关注被错杀的优质标的。"""
+市场情绪极度悲观，恐慌情绪蔓延，多数投资者选择抛售。历史数据显示，此阶段往往是中长期布局的较好时机，但需精选标的、控制仓位、分批建仓。建议关注被错杀的优质标的，逆向投资需有耐心和定力。"""
         elif index < 30:
             return """🟠 **恐慌阶段**（指数20-30）
 
-市场情绪偏悲观，投资者信心不足，成交量萎缩。部分优质标的可能被低估，适合价值投资者逢低关注。建议保持耐心，等待情绪修复。"""
+市场情绪偏悲观，投资者信心不足，成交量萎缩。部分优质标的可能被低估，适合价值投资者逢低关注。建议保持耐心，等待情绪修复，可逐步建仓优质标的。"""
         elif index < 45:
             return """⚪ **谨慎阶段**（指数30-45）
 
-市场情绪偏谨慎，投资者观望情绪浓厚。市场缺乏明确方向，建议控制仓位，等待更明确的信号出现。可关注结构性机会。"""
+市场情绪偏谨慎，投资者观望情绪浓厚。市场缺乏明确方向，建议控制仓位，等待更明确的信号出现。可关注结构性机会，精选个股。"""
         elif index < 55:
             return """⚪ **中性阶段**（指数45-55）
 
-市场情绪平稳，多空力量相对均衡。建议按常规策略操作，精选个股，控制仓位在正常水平。"""
+市场情绪平稳，多空力量相对均衡。建议按常规策略操作，精选个股，控制仓位在正常水平。关注市场方向选择。"""
         elif index < 70:
             return """🟢 **乐观阶段**（指数55-70）
 
-市场情绪偏乐观，投资者信心回升，资金活跃度提高。可适当参与，但需注意追高风险，设置好止损位。"""
+市场情绪偏乐观，投资者信心回升，资金活跃度提高。可适当参与，但需注意追高风险，设置好止损位。关注成交量能否持续放大。"""
         elif index < 85:
             return """🟢 **贪婪阶段**（指数70-85）
 
-市场情绪高涨，投资者风险偏好提升，成交量放大。需警惕追高风险，建议逐步减仓，锁定利润。"""
+市场情绪高涨，投资者风险偏好提升，成交量放大。需警惕追高风险，建议逐步减仓，锁定利润。关注是否出现顶部信号。"""
         else:
             return """🔵 **极度贪婪阶段**（指数>85）
 
-市场情绪狂热，投资者普遍乐观，风险积累。历史数据显示，此阶段往往是市场顶部区域，建议大幅减仓，规避风险。"""
+市场情绪狂热，投资者普遍乐观，风险积累。历史数据显示，此阶段往往是市场顶部区域，建议大幅减仓，规避风险。逆向投资者可关注做空机会。"""
     
     def _sentiment_signal(self, index: float) -> str:
         """情绪交易信号"""
@@ -714,6 +804,11 @@ class UnifiedReportGenerator:
         macd_detail = self._analyze_macd_detailed(macd, macd_signal, histogram)
         rsi_detail = self._analyze_rsi_detailed(rsi, rsi_signal)
         
+        # 布林带
+        bb_upper = tech.get('bb_upper', 0)
+        bb_middle = tech.get('bb_middle', 0)
+        bb_lower = tech.get('bb_lower', 0)
+        
         return f"""## 📊 四、技术指标深度解析
 
 ### 4.1 KDJ随机指标分析
@@ -734,6 +829,7 @@ class UnifiedReportGenerator:
 | 指标 | 数值 | 状态 | 信号 |
 |:-----|:-----|:-----|:-----|
 | **DIF** | {macd:.3f} | {'零轴上' if macd > 0 else '零轴下'} | - |
+| **DEA** | {tech.get('dea', 0):.3f} | - | - |
 | **MACD柱状** | {histogram:.3f} | {'扩张' if abs(histogram) > 0.1 else '收缩'} | - |
 | **MACD信号** | {macd_signal} | {self._macd_status(macd_signal)} | {self._macd_recommendation(macd_signal)} |
 
@@ -751,7 +847,15 @@ class UnifiedReportGenerator:
 
 {rsi_detail}
 
-### 4.4 均线系统分析
+### 4.4 布林带分析
+
+| 轨道 | 价格 | 与现价关系 | 技术意义 |
+|:-----|:-----|:-----------|:---------|
+| **上轨** | ¥{bb_upper:.2f} | 阻力位 | 超买区域 |
+| **中轨** | ¥{bb_middle:.2f} | 基准线 | 20日均线 |
+| **下轨** | ¥{bb_lower:.2f} | 支撑位 | 超卖区域 |
+
+### 4.5 均线系统分析
 
 | 均线 | 价格 | 与现价关系 | 技术意义 |
 |:-----|:-----|:-----------|:---------|
@@ -759,6 +863,8 @@ class UnifiedReportGenerator:
 | MA10 | ¥{tech.get('ma10', 0):.2f} | - | 短期支撑/阻力 |
 | MA20 | ¥{tech.get('ma20', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma20') else '❌ 下方'} | 中期趋势{'向上' if tech.get('price_above_ma20') else '向下'} |
 | MA60 | ¥{tech.get('ma60', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma60') else '❌ 下方'} | 长期趋势{'向上' if tech.get('price_above_ma60') else '向下'} |
+
+**均线排列**：{tech.get('ma_alignment', '待分析')}
 
 **综合趋势判断**：{tech.get('trend', '震荡')}"""
     
@@ -771,7 +877,7 @@ class UnifiedReportGenerator:
             if k < 50:
                 analysis.append("金叉发生在50以下低位，属于低位金叉，信号可靠性较高，建议关注买入机会。")
             else:
-                analysis.append("金叉发生在50以上，属于高位金叉，需结合其他指标确认。")
+                analysis.append("金叉发生在50以上，属于高位金叉，需结合其他指标确认，警惕假突破。")
         elif '死叉' in signal:
             analysis.append(f"🔴 **死叉卖出信号**：K线({k:.2f})下穿D线({d:.2f})，短期动能转弱。")
             if k > 50:
@@ -821,17 +927,17 @@ class UnifiedReportGenerator:
         analysis = []
         
         if rsi > 80:
-            analysis.append(f"🔴 **严重超买**：RSI高达{rsi:.2f}，远超80超买线，短期回调风险极大。")
+            analysis.append(f"🔴 **严重超买**：RSI高达{rsi:.2f}，远超80超买线，短期回调风险极大。建议逢高减仓，锁定利润。")
         elif rsi > 70:
-            analysis.append(f"🟠 **超买区域**：RSI为{rsi:.2f}，进入70-80超买区，上涨空间有限。")
+            analysis.append(f"🟠 **超买区域**：RSI为{rsi:.2f}，进入70-80超买区，上涨空间有限。谨慎追高，关注顶部信号。")
         elif rsi > 50:
-            analysis.append(f"🟢 **强势区域**：RSI为{rsi:.2f}，处于50-70强势区，多头占优。")
+            analysis.append(f"🟢 **强势区域**：RSI为{rsi:.2f}，处于50-70强势区，多头占优。趋势健康，可继续持有。")
         elif rsi > 30:
-            analysis.append(f"⚪ **弱势区域**：RSI为{rsi:.2f}，处于30-50弱势区，空头占优。")
+            analysis.append(f"⚪ **弱势区域**：RSI为{rsi:.2f}，处于30-50弱势区，空头占优。关注支撑位，等待企稳信号。")
         elif rsi > 20:
-            analysis.append(f"🟠 **超卖区域**：RSI为{rsi:.2f}，进入20-30超卖区，下跌空间有限。")
+            analysis.append(f"🟠 **超卖区域**：RSI为{rsi:.2f}，进入20-30超卖区，下跌空间有限。关注反弹机会。")
         else:
-            analysis.append(f"🟢 **严重超卖**：RSI低至{rsi:.2f}，低于20超卖线，短期反弹概率大。")
+            analysis.append(f"🟢 **严重超卖**：RSI低至{rsi:.2f}，低于20超卖线，短期反弹概率大。可考虑逢低布局。")
         
         return '\n\n'.join(analysis)
     
@@ -928,7 +1034,7 @@ class UnifiedReportGenerator:
         
         # 形态详情表格
         pattern_details = []
-        for i, p in enumerate(patterns[:8], 1):
+        for i, p in enumerate(patterns[:10], 1):
             emoji = "🟢" if p.get('type') == 'bullish' else "🔴" if p.get('type') == 'bearish' else "⚪"
             reliability_stars = '⭐' * p.get('reliability', 0) + '☆' * (5 - p.get('reliability', 0))
             pattern_details.append(
@@ -937,8 +1043,8 @@ class UnifiedReportGenerator:
             )
         
         # 看涨形态列表
-        bullish_patterns = [p for p in patterns if p.get('type') == 'bullish'][:3]
-        bearish_patterns = [p for p in patterns if p.get('type') == 'bearish'][:3]
+        bullish_patterns = [p for p in patterns if p.get('type') == 'bullish'][:5]
+        bearish_patterns = [p for p in patterns if p.get('type') == 'bearish'][:5]
         
         bullish_list = '\n'.join([
             f"- **{p.get('name_cn')}**（可靠性{p.get('reliability')}/5，置信度{p.get('confidence'):.1%}）：{p.get('description', '看涨信号')}"
@@ -984,15 +1090,15 @@ class UnifiedReportGenerator:
     def _pattern_strategy(self, signal: str, bullish: int, bearish: int) -> str:
         """形态策略建议"""
         if '强烈看涨' in signal or bullish >= 3:
-            return "多个看涨形态共振，技术面支撑较强，建议积极关注买入机会。"
+            return "多个看涨形态共振，技术面支撑较强，建议积极关注买入机会。可结合缠论买点确认入场时机。"
         elif '看涨' in signal or bullish > bearish:
-            return "看涨形态占优，技术面偏正面，可考虑适量参与。"
+            return "看涨形态占优，技术面偏正面，可考虑适量参与。建议分批建仓，控制仓位。"
         elif '强烈看跌' in signal or bearish >= 3:
-            return "多个看跌形态共振，技术面压力较大，建议谨慎观望。"
+            return "多个看跌形态共振，技术面压力较大，建议谨慎观望。持仓者考虑减仓避险。"
         elif '看跌' in signal or bearish > bullish:
-            return "看跌形态占优，技术面偏负面，建议控制仓位。"
+            return "看跌形态占优，技术面偏负面，建议控制仓位。等待形态改善后再考虑介入。"
         else:
-            return "多空形态均衡，技术面信号混杂，建议等待更明确的形态信号。"
+            return "多空形态均衡，技术面信号混杂，建议等待更明确的形态信号。可关注震荡区间的高抛低吸机会。"
     
     def _md_chanlun_section(self, chanlun: Dict) -> str:
         """缠论结构分析板块"""
@@ -1008,7 +1114,7 @@ class UnifiedReportGenerator:
 #### 最近中枢详情
 
 | 属性 | 数值 | 说明 |
-|:-----|:-----|:-----|
+|:-----|:-----|:---------|
 | **中枢区间** | {nearest_zs.get('range', 'N/A')} | 价格波动中枢 |
 | **ZG（中枢高点）** | {nearest_zs.get('zg', 'N/A')} | 中枢上沿，阻力位 |
 | **ZD（中枢低点）** | {nearest_zs.get('zd', 'N/A')} | 中枢下沿，支撑位 |
@@ -1053,15 +1159,15 @@ class UnifiedReportGenerator:
     def _chanlun_advice(self, trend: str, zs_count: int) -> str:
         """缠论建议"""
         if '向上' in trend and zs_count > 0:
-            return "当前处于向上笔运行中，且有中枢支撑，趋势较为健康。关注是否形成背驰信号。"
+            return "当前处于向上笔运行中，且有中枢支撑，趋势较为健康。关注是否形成背驰信号，背驰可能预示趋势转折。"
         elif '向下' in trend and zs_count > 0:
-            return "当前处于向下笔运行中，关注是否接近中枢下沿或形成买点信号。"
+            return "当前处于向下笔运行中，关注是否接近中枢下沿或形成买点信号。中枢下沿是重要支撑位。"
         elif '向上' in trend:
-            return "向上笔运行中，但中枢结构尚不明确，需关注后续中枢形成情况。"
+            return "向上笔运行中，但中枢结构尚不明确，需关注后续中枢形成情况。无中枢支撑的走势持续性存疑。"
         elif '向下' in trend:
-            return "向下笔运行中，建议等待企稳信号或买点确认后再考虑介入。"
+            return "向下笔运行中，建议等待企稳信号或买点确认后再考虑介入。避免过早抄底。"
         else:
-            return "趋势方向尚不明确，建议等待笔结构进一步清晰。"
+            return "趋势方向尚不明确，建议等待笔结构进一步清晰。缠论强调等待明确的买卖点信号。"
     
     def _md_buysell_points_section(self, chanlun: Dict) -> str:
         """买卖点信号系统板块"""
@@ -1086,7 +1192,7 @@ class UnifiedReportGenerator:
                 level = "🥉 三级买点（一般）"
             
             buy_details.append(
-                f"| {i} | 🎯 {bp_type} | {level} | ¥{price:.2f} | {confidence:.1%} | {description[:30]}... |"
+                f"| {i} | 🎯 {bp_type} | {level} | ¥{price:.2f} | {confidence:.1%} | {description[:40]}... |"
             )
         
         # 卖点详情
@@ -1106,7 +1212,7 @@ class UnifiedReportGenerator:
                 level = "🥉 三级卖点（一般）"
             
             sell_details.append(
-                f"| {i} | 🔻 {sp_type} | {level} | ¥{price:.2f} | {confidence:.1%} | {description[:30]}... |"
+                f"| {i} | 🔻 {sp_type} | {level} | ¥{price:.2f} | {confidence:.1%} | {description[:40]}... |"
             )
         
         # 买卖点说明
@@ -1146,14 +1252,14 @@ class UnifiedReportGenerator:
         """买卖点策略"""
         if buy_points and not sell_points:
             bp = buy_points[-1]
-            return f"当前识别到**{bp.get('type')}**信号，价格¥{bp.get('price', 0):.2f}，置信度{bp.get('confidence', 0):.1%}。建议关注该价位附近的买入机会，设置止损于该买点下方3-5%。"
+            return f"当前识别到**{bp.get('type')}**信号，价格¥{bp.get('price', 0):.2f}，置信度{bp.get('confidence', 0):.1%}。建议关注该价位附近的买入机会，设置止损于该买点下方3-5%。买点确认后可逐步建仓。"
         elif sell_points and not buy_points:
             sp = sell_points[-1]
-            return f"当前识别到**{sp.get('type')}**信号，价格¥{sp.get('price', 0):.2f}，置信度{sp.get('confidence', 0):.1%}。建议关注该价位附近的卖出/减仓机会。"
+            return f"当前识别到**{sp.get('type')}**信号，价格¥{sp.get('price', 0):.2f}，置信度{sp.get('confidence', 0):.1%}。建议关注该价位附近的卖出/减仓机会。持仓者可考虑分批止盈。"
         elif buy_points and sell_points:
-            return f"当前同时存在买点和卖点信号，市场处于震荡格局。建议根据持仓情况灵活操作：接近买点可加仓，接近卖点可减仓，区间内可高抛低吸。"
+            return f"当前同时存在买点和卖点信号，市场处于震荡格局。建议根据持仓情况灵活操作：接近买点可加仓，接近卖点可减仓，区间内可高抛低吸。严格控制仓位，避免追涨杀跌。"
         else:
-            return "当前暂无明确的买卖点信号，建议等待缠论结构进一步清晰后再做决策。"
+            return "当前暂无明确的买卖点信号，建议等待缠论结构进一步清晰后再做决策。缠论强调'买点买，卖点卖'，没有信号时保持观望也是重要的交易策略。"
     
     def _md_resonance_section(self, resonance: Dict) -> str:
         """信号共振评分详细板块"""
@@ -1189,14 +1295,14 @@ class UnifiedReportGenerator:
         bullish_signals = resonance.get('bullish_signals', [])
         bullish_list = '\n'.join([
             f"{i+1}. **{s.get('signal_type', '信号')}**：{s.get('description', '')}"
-            for i, s in enumerate(bullish_signals[:5])
+            for i, s in enumerate(bullish_signals[:8])
         ]) if bullish_signals else "- 暂无主要看涨信号"
         
         # 看跌信号列表
         bearish_signals = resonance.get('bearish_signals', [])
         bearish_list = '\n'.join([
             f"{i+1}. **{s.get('signal_type', '信号')}**：{s.get('description', '')}"
-            for i, s in enumerate(bearish_signals[:5])
+            for i, s in enumerate(bearish_signals[:8])
         ]) if bearish_signals else "- 暂无主要看跌信号"
         
         return f"""### 5.4 信号共振评分系统
@@ -1400,344 +1506,349 @@ class UnifiedReportGenerator:
         if self.pattern_data:
             candlestick = self.pattern_data.get('candlestick', {})
             if candlestick.get('bearish_count', 0) >= 2:
-                risks.append("6. **形态面压力**：多个K线形态发出看跌信号，技术面存在压力")
+                risks.append("6. **形态面看跌**：多个K线形态发出看跌信号，技术面压力较大")
             
-            resonance = self.pattern_data.get('resonance', {})
-            res_score = resonance.get('total_score', 0)
-            if res_score < -30:
-                risks.append(f"7. **信号共振偏弱**：七维度共振评分{res_score:+.1f}分，多维度信号偏空")
+            chanlun = self.pattern_data.get('chanlun', {})
+            if chanlun.get('sell_points', []):
+                risks.append("7. **缠论卖点信号**：缠论结构识别出卖点信号，需警惕调整风险")
         
         if not risks:
-            risks.append("✅ 未发现明显风险信号，但仍需关注市场系统性风险")
+            risks.append("当前未发现明显风险因素，但仍需关注市场系统性风险")
         
         return '\n'.join(risks)
     
     def _position_strategy(self, score: int) -> str:
         """仓位策略"""
         if score >= 80:
-            return "可重仓参与（60-80%），但建议分批建仓，首次建仓不超过40%"
+            return "可重仓参与（70-80%），分2-3批建仓，首批可在当前价位附近入场"
         elif score >= 65:
-            return "可适度参与（40-60%），分2-3批建仓，降低择时风险"
+            return "适量参与（50-60%），分3批建仓，首批试探性建仓，回调加仓"
         elif score >= 50:
-            return "轻仓试探（20-40%），快进快出，严格止损"
+            return "轻仓试探（20-30%），等待更明确信号后再加仓"
         elif score >= 35:
-            return "极小仓位（10-20%）或观望，等待更明确信号"
+            return "观望为主（0-10%），仅可极小仓位试探，严格止损"
         else:
-            return "空仓观望或清仓，规避风险"
+            return "空仓观望，不参与或减仓避险"
     
     def _trading_plan(self, current: float, target: float, stop: float) -> str:
         """交易计划"""
-        if self.total_score >= 70:
-            return f"""- **买入区间**：¥{current * 0.98:.2f} - ¥{current * 1.02:.2f}
-- **目标价位**：¥{target:.2f}（预期收益{(target/current - 1)*100:.1f}%）
-- **止损价位**：¥{stop:.2f}（最大亏损{(1 - stop/current)*100:.1f}%）
-- **持有周期**：中线持有（1-3个月）
-- **止盈策略**：达到目标价减仓50%，剩余设移动止盈"""
-        elif self.total_score >= 50:
-            return f"""- **买入区间**：¥{current * 0.97:.2f} - ¥{current:.2f}（不追高）
-- **目标价位**：¥{target:.2f}
-- **止损价位**：¥{stop:.2f}
-- **持有周期**：波段操作（2-4周）
-- **止盈策略**：分批止盈，涨5%减1/3，涨10%减1/2"""
-        else:
-            return f"""- **买入区间**：暂不买入，等待信号改善
-- **关注价位**：¥{current * 0.95:.2f}以下（回调后）
-- **止损价位**：¥{stop:.2f}
-- **持有周期**：短线或观望
-- **策略**：等待更明确的入场信号"""
+        if current <= 0:
+            return "暂无具体交易计划，等待行情数据更新。"
+        
+        plan = []
+        
+        # 建仓计划
+        if target > current:
+            plan.append(f"""
+**建仓计划**：
+- 首次建仓：当前价位¥{current:.2f}附近，仓位30%
+- 加仓点1：回调至¥{current * 0.97:.2f}（-3%），加仓30%
+- 加仓点2：回调至¥{current * 0.95:.2f}（-5%），加仓40%
+- 总仓位控制：不超过建议仓位""")
+        
+        # 止损计划
+        if stop > 0:
+            plan.append(f"""
+**止损计划**：
+- 初始止损：¥{stop:.2f}（-{((current-stop)/current*100):.1f}%）
+- 移动止损：盈利5%后，止损上移至成本价
+- 盈利10%后，止损上移至成本价+3%
+- 严格执行，不抱侥幸心理""")
+        
+        # 止盈计划
+        if target > current:
+            plan.append(f"""
+**止盈计划**：
+- 目标价：¥{target:.2f}（+{((target-current)/current*100):.1f}%）
+- 分批止盈：到达目标价卖出50%，剩余设移动止盈
+- 时间止损：持仓超过2周未达预期，考虑减仓""")
+        
+        return '\n'.join(plan)
     
     def _generate_summary_enhanced(self) -> str:
         """生成增强版分析总结"""
-        if self.total_score >= 75:
-            return f"""综合五维分析，该股票目前呈现**{self.rating}**信号，综合评分{self.total_score}/100。
-
-**技术面**：趋势明确，指标配合良好；**基本面**：业绩稳健，财务健康；**资金面**：主力积极；**消息面**：情绪正面；**形态面**：{self._pattern_summary()}。
-
-建议积极配置，但需严格执行止损纪律，控制单一标的仓位不超过总资产的30%。"""
-        elif self.total_score >= 60:
-            return f"""综合五维分析，该股票目前呈现**{self.rating}**信号，综合评分{self.total_score}/100。
-
-整体趋势向好，但部分维度存在不确定性。{self._pattern_summary()}
-
-建议适量参与，控制仓位，密切关注后续走势变化，及时调整策略。"""
-        elif self.total_score >= 45:
-            return f"""综合五维分析，该股票目前信号**中性混杂**，综合评分{self.total_score}/100。
-
-多空因素交织，趋势尚不明确。{self._pattern_summary()}
-
-建议观望为主，等待更明确的入场信号，避免在模糊区域操作。"""
-        else:
-            return f"""综合五维分析，该股票目前呈现**{self.rating}**信号，综合评分{self.total_score}/100。
-
-多个维度显示风险积聚，{self._pattern_summary()}
-
-建议减仓观望，规避风险，等待趋势明朗后再做决策。"""
-    
-    def _pattern_summary(self) -> str:
-        """形态面总结"""
-        if not self.pattern_data:
-            return "形态面数据待更新"
+        quote = self.data.get('quote', {})
+        price = quote.get('price', 0)
+        pct_change = quote.get('pct_change', 0)
         
-        parts = []
-        candlestick = self.pattern_data.get('candlestick', {})
-        bullish = candlestick.get('bullish_count', 0)
-        bearish = candlestick.get('bearish_count', 0)
+        summary_parts = []
         
-        if bullish > 0 or bearish > 0:
-            parts.append(f"识别出{bullish}个看涨、{bearish}个看跌形态")
+        # 总体判断
+        summary_parts.append(f"**总体判断**：{self.stock_name}（{self.code}）当前综合评分{self.total_score}分，评级为'{self.rating}'。")
         
-        chanlun = self.pattern_data.get('chanlun', {})
-        if chanlun.get('buy_points', []):
-            parts.append("缠论出现买点信号")
-        if chanlun.get('sell_points', []):
-            parts.append("缠论出现卖点信号")
+        # 技术面
+        tech = self.data.get('technical', {})
+        if tech:
+            summary_parts.append(f"技术面呈现{tech.get('trend', '震荡')}走势，{tech.get('kdj_signal', 'KDJ正常')}，{tech.get('macd_signal', 'MACD正常')}。")
         
-        resonance = self.pattern_data.get('resonance', {})
-        res_score = resonance.get('total_score', 0)
-        if abs(res_score) > 30:
-            parts.append(f"信号共振评分{res_score:+.1f}分")
+        # 形态面
+        if self.pattern_data:
+            resonance = self.pattern_data.get('resonance', {})
+            res_score = resonance.get('total_score', 0)
+            if abs(res_score) > 30:
+                direction = "看涨" if res_score > 0 else "看跌"
+                summary_parts.append(f"形态面呈现{direction}共振（{res_score:+.1f}分），")
+            
+            chanlun = self.pattern_data.get('chanlun', {})
+            if chanlun.get('buy_points'):
+                bp = chanlun['buy_points'][-1]
+                summary_parts.append(f"缠论识别出{bp.get('type')}信号（¥{bp.get('price', 0):.2f}）。")
         
-        return "形态面" + ("，".join(parts) if parts else "信号中性")
+        # 操作建议
+        summary_parts.append(f"**操作建议**：{self.suggestion.get('action', '观望')}，目标价¥{self.suggestion.get('target_price', 0):.2f}，止损价¥{self.suggestion.get('stop_loss', 0):.2f}。")
+        
+        # 风险提示
+        summary_parts.append("**风险提示**：以上分析基于历史数据，不构成投资建议。股市有风险，投资需谨慎。请结合自身风险承受能力做出决策。")
+        
+        return '\n\n'.join(summary_parts)
     
     def _md_risk_disclaimer(self) -> str:
-        """Markdown风险提示与免责声明"""
-        return f"""---
+        """Markdown风险提示"""
+        return """## ⚠️ 附录：风险提示与免责声明
 
-## ⚠️ 附录：风险提示与免责声明
+### 重要风险提示
 
-### 风险提示
-
-1. **市场风险**：股票市场受宏观经济、政策环境、国际形势等多重因素影响，存在系统性风险
+1. **市场风险**：股票市场受宏观经济、政策变化、国际形势等多种因素影响，存在系统性风险
 2. **个股风险**：个股价格受公司经营、行业竞争、市场情绪等因素影响，波动可能较大
-3. **模型风险**：本报告基于算法模型和历史数据，不保证未来收益，信号可能存在误差
-4. **形态识别风险**：K线形态和缠论买卖点为算法自动识别，可能存在误判，需人工复核
-5. **共振评分风险**：信号共振评分仅供参考，不构成买卖依据
-6. **时效性风险**：报告基于历史数据，市场情况可能快速变化，建议及时更新分析
+3. **技术风险**：本报告中的技术指标、形态识别、买卖点信号等基于算法自动计算，可能存在误差
+4. **数据风险**：数据来源于公开渠道，可能存在延迟或错误，仅供参考
+5. **模型风险**：信号共振评分、情绪指数等模型基于历史数据构建，不保证未来有效性
 
 ### 免责声明
 
-> **本报告仅供参考，不构成任何投资建议或承诺。**
-> 
-> 1. 报告中的数据和分析结果基于公开信息和算法模型，作者不保证其准确性、完整性和及时性
-> 2. 投资者应独立做出投资决策，并自行承担投资风险
-> 3. 过往业绩不代表未来表现，历史回测结果仅供参考
-> 4. 本报告版权归作者所有，未经授权不得转载或用于商业用途
-> 5. 使用本报告即表示您已阅读并理解上述风险提示和免责声明
-> 
-> **股市有风险，投资需谨慎。请根据自身风险承受能力谨慎决策。**
+- 本报告仅供学习和研究使用，不构成任何投资建议
+- 报告中的观点、结论和建议仅供参考，投资者应独立判断
+- 过往业绩不代表未来表现，投资有风险，入市需谨慎
+- 请投资者根据自身风险承受能力，审慎做出投资决策
+- 本报告作者不对因使用本报告而产生的任何损失承担责任
 
 ---
 
-<div align="center">
-
-**报告由 Stock Analyst Skill V3.1 Pro 智能分析系统生成**
-
-📅 生成时间：{self.timestamp} | 🔄 数据时效：实时
-
-</div>"""
+**报告生成时间**：{timestamp}  
+**报告版本**：Stock Analyst V3.1 Pro Max  
+**数据来源**：AkShare等公开数据接口""".format(timestamp=self.timestamp)
     
-    # ==================== HTML格式生成（简化版，核心样式） ====================
+    # ==================== HTML格式生成 ====================
     
-    def generate_html(self) -> str:
-        """生成专业HTML格式报告"""
-        # 将Markdown转换为HTML（简化实现）
-        md_content = self.generate_markdown()
-        
-        return f"""<!DOCTYPE html>
+    def _generate_html_report(self) -> str:
+        """生成完整HTML报告"""
+        md_content = self._generate_markdown_report()
+        # 将Markdown转换为HTML（简化版，实际可使用markdown库）
+        html = self._markdown_to_html(md_content)
+        return html
+    
+    def _markdown_to_html(self, md: str) -> str:
+        """将Markdown转换为HTML"""
+        # 添加HTML头部和样式
+        html_head = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{self.stock_name} ({self.code}) - 专业股票分析报告</title>
+    <title>{} 股票分析报告</title>
     <style>
         :root {{
             --primary: #2563eb;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --neutral: #6b7280;
+            --info: #3b82f6;
             --bg: #f8fafc;
             --card: #ffffff;
-            --text: #1f2937;
-            --border: #e5e7eb;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
         }}
-        
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.8;
+            padding: 20px;
         }}
-        
-        .container {{ max-width: 1000px; margin: 0 auto; padding: 20px; }}
-        
-        /* Header */
+        .container {{ max-width: 1200px; margin: 0 auto; }}
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 40px;
             border-radius: 16px;
-            margin-bottom: 24px;
+            margin-bottom: 30px;
             text-align: center;
         }}
-        
-        .header h1 {{ font-size: 2rem; margin-bottom: 12px; }}
-        .header .meta {{ opacity: 0.9; font-size: 0.9rem; }}
-        
-        /* Cards */
-        .card {{
+        .header h1 {{ font-size: 2.5em; margin-bottom: 10px; }}
+        .header .meta {{ opacity: 0.9; font-size: 1.1em; }}
+        .section {{
             background: var(--card);
             border-radius: 12px;
-            padding: 28px;
+            padding: 30px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }}
-        
-        .card h2 {{
-            font-size: 1.4rem;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 3px solid var(--primary);
+        .section h2 {{
             color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.5em;
         }}
-        
-        .card h3 {{
-            font-size: 1.1rem;
-            margin: 24px 0 12px 0;
+        .section h3 {{
             color: var(--text);
-            font-weight: 600;
+            margin: 20px 0 15px;
+            font-size: 1.2em;
         }}
-        
-        /* Tables */
+        .section h4 {{
+            color: var(--text-muted);
+            margin: 15px 0 10px;
+            font-size: 1.1em;
+        }}
         table {{
             width: 100%;
             border-collapse: collapse;
-            margin: 16px 0;
-            font-size: 0.9rem;
+            margin: 15px 0;
+            font-size: 0.95em;
         }}
-        
         th, td {{
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid var(--border);
         }}
-        
         th {{
-            background: #f9fafb;
+            background: var(--bg);
             font-weight: 600;
-            color: var(--neutral);
+            color: var(--text);
         }}
-        
-        tr:hover {{ background: #f9fafb; }}
-        
-        /* Score display */
+        tr:hover {{ background: var(--bg); }}
+        .rating {{
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }}
+        .rating-strong {{ background: var(--success); color: white; }}
+        .rating-weak {{ background: var(--danger); color: white; }}
+        .rating-neutral {{ background: var(--warning); color: white; }}
+        .highlight {{
+            background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }}
+        .alert {{
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }}
+        .alert-success {{ background: #d1fae5; border-left: 4px solid var(--success); }}
+        .alert-warning {{ background: #fef3c7; border-left: 4px solid var(--warning); }}
+        .alert-danger {{ background: #fee2e2; border-left: 4px solid var(--danger); }}
+        .alert-info {{ background: #dbeafe; border-left: 4px solid var(--info); }}
+        .grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }}
+        .card {{
+            background: var(--bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }}
+        .card h4 {{ margin-top: 0; color: var(--primary); }}
         .score-display {{
             text-align: center;
-            padding: 24px;
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             border-radius: 12px;
-            margin: 16px 0;
+            margin: 20px 0;
         }}
-        
-        .score-display .score {{
-            font-size: 3rem;
-            font-weight: bold;
-            color: var(--primary);
+        .score-display .score {{ font-size: 4em; font-weight: bold; }}
+        .score-display .label {{ font-size: 1.2em; opacity: 0.9; }}
+        code {{
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
         }}
-        
-        .score-display .rating {{
-            font-size: 1.5rem;
-            margin-top: 8px;
+        blockquote {{
+            border-left: 4px solid var(--primary);
+            padding-left: 20px;
+            margin: 15px 0;
+            color: var(--text-muted);
         }}
-        
-        /* Highlight box */
-        .highlight {{
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border-left: 4px solid var(--warning);
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 0 8px 8px 0;
-        }}
-        
-        /* Pattern section highlight */
-        .pattern-highlight {{
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-            border: 2px solid var(--success);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 16px 0;
-        }}
-        
-        /* Badges */
-        .badge {{
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }}
-        
-        .badge-success {{ background: #d1fae5; color: #065f46; }}
-        .badge-danger {{ background: #fee2e2; color: #991b1b; }}
-        .badge-warning {{ background: #fef3c7; color: #92400e; }}
-        
-        /* Lists */
-        ul {{ padding-left: 20px; margin: 12px 0; }}
+        ul, ol {{ margin: 15px 0; padding-left: 30px; }}
         li {{ margin: 8px 0; }}
-        
-        /* Disclaimer */
-        .disclaimer {{
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border: 1px solid var(--warning);
-            border-radius: 12px;
-            padding: 24px;
-            margin-top: 24px;
+        .divider {{
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 40px 0;
         }}
-        
-        .disclaimer h3 {{ color: #92400e; margin-bottom: 12px; }}
-        
-        /* Responsive */
         @media (max-width: 768px) {{
-            .container {{ padding: 12px; }}
-            .header {{ padding: 24px; }}
-            .header h1 {{ font-size: 1.5rem; }}
-            table {{ font-size: 0.8rem; }}
+            body {{ padding: 10px; }}
+            .header {{ padding: 20px; }}
+            .header h1 {{ font-size: 1.8em; }}
+            .section {{ padding: 20px; }}
+            table {{ font-size: 0.85em; }}
             th, td {{ padding: 8px; }}
         }}
     </style>
 </head>
 <body>
     <div class="container">
-        {self._html_content_from_md()}
+""".format(f"{self.stock_name} ({self.code})")
+        
+        # 简单的Markdown到HTML转换
+        html_body = self._simple_md_to_html(md_content)
+        
+        html_foot = """
     </div>
 </body>
 </html>"""
-    
-    def _html_content_from_md(self) -> str:
-        """从Markdown生成HTML内容（简化转换）"""
-        # 这里简化处理，实际可以使用markdown库转换
-        md = self.generate_markdown()
         
-        # 基本转换
+        return html_head + html_body + html_foot
+    
+    def _simple_md_to_html(self, md: str) -> str:
+        """简单的Markdown到HTML转换"""
         html = md
         
         # 转换标题
-        html = html.replace('## ', '</div><div class="card"><h2>')
-        html = html.replace('### ', '<h3>')
-        html = html.replace('\n\n---\n\n', '</div>')
+        html = html.replace('# ', '<h1>').replace('\n## ', '</h1>\n<h2>')
+        html = html.replace('\n### ', '</h2>\n<h3>').replace('\n#### ', '</h3>\n<h4>')
+        html = html.replace('\n---\n', '</h4>\n<div class="divider"></div>\n')
         
-        # 包装开头
-        html = '<div class="header"><h1>📊 ' + self.stock_name + ' (' + self.code + ') 深度分析报告</h1>' + \
-               '<div class="meta">专业版股票分析报告 | 五维分析体系 | V3.1 Pro<br>报告生成时间：' + self.timestamp + '</div></div>' + html
+        # 转换强调
+        html = html.replace('**', '<strong>').replace('**', '</strong>')
         
-        # 添加结尾
-        html = html + '</div>'
+        # 转换表格（简化处理）
+        lines = html.split('\n')
+        in_table = False
+        new_lines = []
+        for line in lines:
+            if line.startswith('|') and not in_table:
+                in_table = True
+                new_lines.append('<table>')
+            elif not line.startswith('|') and in_table:
+                in_table = False
+                new_lines.append('</table>')
+            if in_table:
+                if '---' in line:
+                    continue
+                cells = line.split('|')[1:-1]
+                tag = 'th' if new_lines and '<table>' in new_lines[-1] else 'td'
+                new_lines.append('<tr>' + ''.join(f'<{tag}>{c.strip()}</{tag}>' for c in cells) + '</tr>')
+            else:
+                new_lines.append(line)
+        html = '\n'.join(new_lines)
         
-        # 添加免责声明样式
-        html = html.replace('## ⚠️ 附录：风险提示与免责声明', '</div><div class="disclaimer"><h3>⚠️ 附录：风险提示与免责声明</h3>')
+        # 转换列表
+        html = html.replace('\n- ', '\n<li>').replace('\n\n', '</li>\n\n')
+        
+        # 包裹段落
+        html = '<div class="section">' + html + '</div>'
         
         return html
 
@@ -1746,193 +1857,302 @@ class UnifiedReportGenerator:
 
 def generate_unified_report(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> Dict[str, str]:
     """
-    生成统一格式的专业报告（同时返回HTML和Markdown）
+    生成统一报告（HTML + Markdown）
     
     Args:
-        data: 基础分析数据（行情、财务、新闻、技术指标等）
-        pattern_data: 形态面分析数据（可选）
+        data: 基础分析数据
+        pattern_data: 形态面分析数据
         
     Returns:
         {'html': html_content, 'markdown': md_content}
     """
     generator = UnifiedReportGenerator(data, pattern_data)
-    return {
-        'html': generator.generate_html(),
-        'markdown': generator.generate_markdown()
-    }
+    return generator.generate_unified_report()
 
 
 def generate_html_report(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> str:
-    """便捷函数：生成HTML格式报告"""
+    """生成HTML报告"""
     generator = UnifiedReportGenerator(data, pattern_data)
     return generator.generate_html()
 
 
 def generate_markdown_report(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> str:
-    """便捷函数：生成Markdown格式报告"""
+    """生成Markdown报告"""
     generator = UnifiedReportGenerator(data, pattern_data)
     return generator.generate_markdown()
 
 
-# ==================== 测试代码 ====================
+# ==================== 数据接口规范 ====================
+"""
+数据接口规范说明：
+
+1. data 数据结构：
+{
+    'code': '股票代码',
+    'stock_name': '股票名称',
+    'timestamp': '报告生成时间',
+    'quote': {
+        'price': 当前价格,
+        'pct_change': 涨跌幅%,
+        'volume': 成交量,
+        'amount': 成交额,
+        'turnover': 换手率%,
+        'open': 开盘价,
+        'high': 最高价,
+        'low': 最低价,
+        'prev_close': 昨收价,
+        'pe': 市盈率,
+        'pb': 市净率,
+        'market_cap': 总市值
+    },
+    'technical': {
+        'k', 'd', 'j': KDJ指标,
+        'kdj_signal': KDJ信号,
+        'macd': MACD值,
+        'dea': DEA值,
+        'histogram': MACD柱状,
+        'macd_signal': MACD信号,
+        'rsi': RSI值,
+        'rsi_signal': RSI信号,
+        'ma5', 'ma10', 'ma20', 'ma60': 均线,
+        'price_above_ma5', 'price_above_ma20', 'price_above_ma60': 均线位置,
+        'bb_upper', 'bb_middle', 'bb_lower': 布林带,
+        'trend': 趋势判断,
+        'ma_alignment': 均线排列
+    },
+    'fundamental': {
+        'financial': {
+            'latest': {
+                'report_date': '报告期',
+                'revenue': '营业收入',
+                'revenue_yoy': '营收同比',
+                'net_profit': '净利润',
+                'net_profit_yoy': '净利润同比',
+                'roe': 'ROE',
+                'gross_margin': '毛利率',
+                'net_margin': '净利率',
+                'debt_ratio': '资产负债率',
+                'eps': '每股收益',
+                'ocf_ps': '每股现金流',
+                'pe': 'PE',
+                'pb': 'PB',
+                'pe_percentile': 'PE分位数',
+                'pb_percentile': 'PB分位数'
+            },
+            'history': [历史财务数据列表]
+        },
+        'performance_trend': {
+            'overall_trend': '整体趋势'
+        }
+    },
+    'news': {
+        'sentiment': '情感倾向',
+        'sentiment_score': 情感得分,
+        'fundamental_impact': '基本面影响',
+        'items': [新闻列表]
+    },
+    'money_flow': {
+        'main_flow': {
+            'main_net': 主力净流入
+        }
+    },
+    'suggestion': {
+        'total_score': 综合评分,
+        'action': '操作建议',
+        'target_price': 目标价,
+        'stop_loss': 止损价,
+        'position': '建议仓位',
+        'level': '风险等级'
+    }
+}
+
+2. pattern_data 数据结构：
+{
+    'candlestick': {
+        'patterns': [形态列表],
+        'bullish_count': 看涨形态数,
+        'bearish_count': 看跌形态数,
+        'bullish_score': 看涨得分,
+        'bearish_score': 看跌得分,
+        'signal': 综合信号
+    },
+    'chanlun': {
+        'bi_count': 笔数量,
+        'zhongshu_count': 中枢数量,
+        'current_trend': 当前趋势,
+        'nearest_zhongshu': 最近中枢,
+        'bis': [笔列表],
+        'buy_points': [买点列表],
+        'sell_points': [卖点列表]
+    },
+    'resonance': {
+        'total_score': 综合评分,
+        'bullish_score': 看涨得分,
+        'bearish_score': 看跌得分,
+        'signal_count': 信号数量,
+        'breakdown': 维度得分,
+        'bullish_signals': [看涨信号],
+        'bearish_signals': [看跌信号]
+    },
+    'sentiment': {
+        'index_value': 情绪指数,
+        'level': 情绪等级,
+        'trend': 情绪趋势
+    }
+}
+"""
 
 if __name__ == '__main__':
-    # 测试数据
-    test_data = {
-        'stock_name': '西部材料',
-        'code': '002149',
-        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    # 示例用法
+    example_data = {
+        'code': '000001',
+        'stock_name': '平安银行',
+        'timestamp': '2026-04-16 21:30:00',
         'quote': {
-            'price': 18.52,
-            'pct_change': 3.25,
-            'open': 17.95,
-            'high': 18.78,
-            'low': 17.88,
-            'volume': 1256800,
-            'amount': 2.33,
-            'turnover': 3.15,
-            'pe': 28.5
+            'price': 10.50,
+            'pct_change': 2.5,
+            'volume': 1000000,
+            'amount': 10.5,
+            'turnover': 5.2,
+            'open': 10.30,
+            'high': 10.60,
+            'low': 10.25,
+            'prev_close': 10.25,
+            'pe': 5.8,
+            'pb': 0.6,
+            'market_cap': 2000
         },
         'technical': {
-            'ma5': 17.95,
-            'ma10': 17.68,
-            'ma20': 17.25,
-            'ma60': 16.85,
+            'k': 65, 'd': 55, 'j': 85,
+            'kdj_signal': '金叉',
+            'macd': 0.15,
+            'dea': 0.10,
+            'histogram': 0.05,
+            'macd_signal': '多头',
+            'rsi': 58,
+            'rsi_signal': '正常',
+            'ma5': 10.30,
+            'ma10': 10.20,
+            'ma20': 10.10,
+            'ma60': 9.80,
             'price_above_ma5': True,
             'price_above_ma20': True,
             'price_above_ma60': True,
-            'rsi': 62.5,
-            'rsi_signal': '正常',
-            'k': 75.2,
-            'd': 68.5,
-            'j': 88.6,
-            'kdj_signal': '金叉',
-            'macd': 0.35,
-            'macd_signal': '多头',
-            'histogram': 0.12,
-            'trend': '上升趋势'
+            'bb_upper': 10.80,
+            'bb_middle': 10.40,
+            'bb_lower': 10.00,
+            'trend': '上升趋势',
+            'ma_alignment': '多头排列'
         },
         'fundamental': {
-            'score': 72,
             'financial': {
                 'latest': {
-                    'report_date': '2024-09-30',
-                    'net_profit_yoy': '22.5%',
-                    'revenue_yoy': '18.2%',
-                    'roe': '16.5%',
-                    'gross_margin': '28.5%',
-                    'net_margin': '12.8%',
-                    'debt_ratio': '38.2%',
-                    'eps': '0.85',
-                    'ocf_ps': '1.12'
-                }
+                    'report_date': '2025-12-31',
+                    'revenue': '1000亿',
+                    'revenue_yoy': '5.2%',
+                    'net_profit': '450亿',
+                    'net_profit_yoy': '8.5%',
+                    'roe': '12.5%',
+                    'gross_margin': '35%',
+                    'net_margin': '45%',
+                    'debt_ratio': '92%',
+                    'eps': '2.35',
+                    'ocf_ps': '3.20',
+                    'pe': '5.8',
+                    'pb': '0.6',
+                    'pe_percentile': '15%',
+                    'pb_percentile': '10%'
+                },
+                'history': []
             },
             'performance_trend': {
-                'overall_trend': '基本面向好'
-            }
-        },
-        'money_flow': {
-            'score': 68,
-            'main_flow': {
-                'date': '2024-12-20',
-                'main_net': 0.85,
-                'main_pct': 5.2
+                'overall_trend': '稳健向好'
             }
         },
         'news': {
-            'sentiment': '偏多',
-            'sentiment_score': 12,
-            'fundamental_impact': '消息面利好基本面',
+            'sentiment': '中性偏正面',
+            'sentiment_score': 15,
+            'fundamental_impact': '中性',
             'items': [
-                {'title': '公司新材料项目获重大突破，市场前景广阔', 'date': '2024-12-19'},
-                {'title': '西部材料：与某头部企业签署战略合作协议', 'date': '2024-12-18'},
-                {'title': '行业景气度回升，下游需求持续向好', 'date': '2024-12-17'}
+                {'title': '平安银行发布年报，业绩稳健增长', 'date': '2026-04-15', 'source': '证券时报'},
+                {'title': '银行业整体向好，资产质量改善', 'date': '2026-04-14', 'source': '上海证券报'}
             ]
+        },
+        'money_flow': {
+            'main_flow': {
+                'main_net': 1.2
+            }
         },
         'suggestion': {
             'total_score': 72,
-            'action': '适量买入',
-            'level': '谨慎乐观',
-            'target_price': 21.50,
-            'stop_loss': 16.80,
-            'position': '25%'
+            'action': '买入',
+            'target_price': 11.50,
+            'stop_loss': 9.80,
+            'position': '50%',
+            'level': '中等'
         }
     }
     
-    test_pattern_data = {
+    example_pattern = {
         'candlestick': {
             'patterns': [
-                {'name_cn': '早晨之星', 'type': 'bullish', 'type_cn': '看涨反转', 'reliability': 5, 'confidence': 0.88, 'position': 0, 'description': '底部反转信号'},
-                {'name_cn': '阳包阴', 'type': 'bullish', 'type_cn': '看涨反转', 'reliability': 4, 'confidence': 0.82, 'position': 1, 'description': '多头力量增强'},
-                {'name_cn': '突破缺口', 'type': 'bullish', 'type_cn': '看涨持续', 'reliability': 4, 'confidence': 0.75, 'position': 2, 'description': '趋势加速信号'}
+                {'name_cn': '早晨之星', 'type': 'bullish', 'type_cn': '看涨', 'reliability': 5, 'confidence': 0.85, 'position': 0, 'description': '底部反转信号'},
+                {'name_cn': '阳包阴', 'type': 'bullish', 'type_cn': '看涨', 'reliability': 4, 'confidence': 0.75, 'position': 1, 'description': '多头力量增强'}
             ],
-            'bullish_count': 3,
+            'bullish_count': 2,
             'bearish_count': 0,
-            'bullish_score': 42.5,
+            'bullish_score': 16,
             'bearish_score': 0,
-            'signal': '强烈看涨',
-            'total_patterns': 3
+            'signal': '看涨',
+            'total_patterns': 2
         },
         'chanlun': {
-            'bi_count': 7,
-            'zhongshu_count': 2,
+            'bi_count': 5,
+            'zhongshu_count': 1,
             'current_trend': '向上笔进行中',
-            'nearest_zhongshu': {'range': '16.80-17.50', 'zg': 17.50, 'zd': 16.80, 'center': 17.15},
+            'nearest_zhongshu': {
+                'range': '10.20-10.40',
+                'zg': 10.40,
+                'zd': 10.20,
+                'center': 10.30
+            },
             'bis': [
-                {'direction': 'up', 'start_price': 16.50, 'end_price': 17.20, 'height': 0.70},
-                {'direction': 'down', 'start_price': 17.20, 'end_price': 16.85, 'height': 0.35},
-                {'direction': 'up', 'start_price': 16.85, 'end_price': 18.52, 'height': 1.67}
+                {'direction': 'up', 'start_price': 10.10, 'end_price': 10.30, 'height': 0.20},
+                {'direction': 'down', 'start_price': 10.30, 'end_price': 10.20, 'height': 0.10}
             ],
             'buy_points': [
-                {'type': '一买', 'price': 16.52, 'confidence': 0.85, 'description': '趋势背驰点，形成强支撑'},
-                {'type': '二买', 'price': 17.25, 'confidence': 0.78, 'description': '回调不破中枢低点'}
+                {'type': '一买', 'price': 10.15, 'confidence': 0.80, 'description': '趋势背驰点'}
             ],
             'sell_points': []
         },
         'resonance': {
-            'total_score': 78.5,
-            'resonance_level': '强共振',
-            'bullish_score': 92.0,
-            'bearish_score': 13.5,
-            'signal_count': 9,
+            'total_score': 68,
+            'bullish_score': 75,
+            'bearish_score': 7,
+            'signal_count': 12,
             'breakdown': {
-                'K线形态': 20.0,
-                '技术指标': 18.0,
-                '趋势信号': 15.0,
-                '成交量': 10.0,
-                '基本面': 12.0,
-                '情绪面': 3.5,
-                '缠论': 10.0
+                'K线形态': 18,
+                '技术指标': 16,
+                '趋势信号': 12,
+                '成交量': 8,
+                '基本面': 10,
+                '情绪面': 6,
+                '缠论': 8
             },
             'bullish_signals': [
                 {'signal_type': 'K线形态', 'description': '早晨之星形态确认'},
-                {'signal_type': '缠论', 'description': '一买信号出现'},
-                {'signal_type': '趋势', 'description': '突破MA60均线'}
+                {'signal_type': '技术指标', 'description': 'KDJ金叉信号'}
             ],
             'bearish_signals': []
         },
         'sentiment': {
-            'index_value': 62.5,
-            'level': {'name': '贪婪'},
-            'trend': '上升',
-            'signal': '谨慎持有'
+            'index_value': 55,
+            'level': {'name': '中性'},
+            'trend': '上升'
         }
     }
     
     # 生成报告
-    reports = generate_unified_report(test_data, test_pattern_data)
-    
-    # 保存测试文件
-    import os
-    output_dir = os.path.join(os.path.dirname(__file__), '..', 'test_output')
-    os.makedirs(output_dir, exist_ok=True)
-    
-    with open(os.path.join(output_dir, 'professional_report.md'), 'w', encoding='utf-8') as f:
-        f.write(reports['markdown'])
-    
-    with open(os.path.join(output_dir, 'professional_report.html'), 'w', encoding='utf-8') as f:
-        f.write(reports['html'])
-    
-    print("✅ 专业版测试报告已生成：")
-    print(f"  📄 Markdown: {os.path.join(output_dir, 'professional_report.md')}")
-    print(f"  🌐 HTML: {os.path.join(output_dir, 'professional_report.html')}")
+    reports = generate_unified_report(example_data, example_pattern)
+    print("Markdown报告长度:", len(reports['markdown']))
+    print("HTML报告长度:", len(reports['html']))
