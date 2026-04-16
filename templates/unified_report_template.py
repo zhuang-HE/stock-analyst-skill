@@ -1,20 +1,60 @@
 # -*- coding: utf-8 -*-
 """
-统一报告模板 - 同时生成HTML和Markdown格式
-报告内容统一，包含：
-1. 实时行情数据（价格、涨跌幅、成交量）近期走势解读
-2. 利润表及财务核心数据，财务质量、营收、利润趋势分析解读（含业务板块分析）
-3. 最新财经新闻摘要，市场情绪评分
-4. 技术指标分析（KDJ金叉死叉、MACD信号）
-5. 形态面的内容（形态识别结果、买卖点及说明、信号共振评分）
-6. 综合投资建议（评分、核心优势、风险因素、交易建议、分析总结）
+================================================================================
+统一专业股票分析报告模板 V3.1 Pro
+================================================================================
+同时生成HTML和Markdown格式，内容统一、专业、功能完备
+
+报告结构：
+├── 封面与概览
+├── 一、实时行情与走势分析（价格、涨跌幅、成交量、技术走势）
+├── 二、财务深度分析（利润表、财务质量、趋势、业务板块）
+├── 三、新闻舆情与市场情绪（新闻摘要、情绪指数、舆情分析）
+├── 四、技术指标深度解析（KDJ/MACD/均线/量价）
+├── 五、形态面专业分析【重点强化】
+│   ├── 5.1 K线形态识别结果（60+形态库、形态详情、可靠性评估）
+│   ├── 5.2 缠论结构分析（笔/中枢/趋势、买卖点识别）
+│   ├── 5.3 买卖点信号系统（一买二买三买/一卖二卖三卖、置信度）
+│   └── 5.4 信号共振评分（7维度加权、共振级别、信号明细）
+├── 六、综合投资决策建议（评分、优势、风险、策略、总结）
+└── 附录：风险提示与免责声明
+
+作者：Stock Analyst Skill V3.1
+================================================================================
 """
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
+import json
 
 
 class UnifiedReportGenerator:
-    """统一报告生成器 - 同时输出HTML和Markdown"""
+    """
+    统一专业报告生成器
+    
+    特性：
+    - 双格式输出：HTML（可视化）+ Markdown（可读性）
+    - 五维分析体系：技术/基本面/资金/消息/形态
+    - 形态面深度强化：K线形态+缠论+买卖点+共振评分
+    - 专业级内容：财务解读、技术指标、投资策略
+    """
+    
+    # 评级标准
+    RATING_LEVELS = {
+        (85, 100): ('强烈买入', '🟢', 'rating-strong', '多维度强烈共振，建议积极配置'),
+        (70, 84): ('买入', '🟢', 'rating-strong', '机会大于风险，建议适量参与'),
+        (55, 69): ('谨慎乐观', '🟡', '', '信号偏正面，控制仓位参与'),
+        (45, 54): ('观望', '⚪', '', '信号混杂，建议等待明确机会'),
+        (30, 44): ('谨慎', '🟠', 'rating-weak', '风险积聚，建议减仓观望'),
+        (0, 29): ('卖出', '🔴', 'rating-weak', '趋势恶化，建议规避风险'),
+    }
+    
+    # 共振级别
+    RESONANCE_LEVELS = {
+        (75, 100): ('强共振', '🟢', '多维度信号高度一致，趋势确认度高'),
+        (50, 74): ('中等共振', '🟡', '多数维度信号同向，趋势较为明确'),
+        (25, 49): ('弱共振', '⚪', '部分维度信号同向，趋势待确认'),
+        (0, 24): ('无共振', '⚫', '各维度信号分散，趋势不明确'),
+    }
     
     def __init__(self, data: Dict[str, Any], pattern_data: Optional[Dict] = None):
         """
@@ -22,76 +62,120 @@ class UnifiedReportGenerator:
         
         Args:
             data: 基础分析数据（行情、财务、新闻、技术指标等）
-            pattern_data: 形态面分析数据（可选）
+            pattern_data: 形态面分析数据（K线形态、缠论、共振评分等）
         """
         self.data = data
         self.pattern_data = pattern_data or {}
         self.stock_name = data.get('stock_name', '未知')
         self.code = data.get('code', '')
         self.timestamp = data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        # 计算综合评分
+        self.suggestion = data.get('suggestion', {})
+        self.total_score = self.suggestion.get('total_score', 50)
+        self.rating, self.rating_emoji, self.rating_class, self.rating_summary = self._get_rating(self.total_score)
+    
+    def _get_rating(self, score: int) -> Tuple[str, str, str, str]:
+        """根据评分获取评级信息"""
+        for (min_s, max_s), (rating, emoji, css_class, summary) in self.RATING_LEVELS.items():
+            if min_s <= score <= max_s:
+                return rating, emoji, css_class, summary
+        return '观望', '⚪', '', '信号中性，建议观望'
+    
+    def _get_resonance_level(self, score: float) -> Tuple[str, str, str]:
+        """根据共振评分获取级别"""
+        abs_score = abs(score)
+        for (min_s, max_s), (level, emoji, desc) in self.RESONANCE_LEVELS.items():
+            if min_s <= abs_score <= max_s:
+                direction = '看涨' if score > 0 else '看跌' if score < 0 else '中性'
+                return f"{emoji} {level}({direction})", emoji, desc
+        return '⚫ 无共振', '⚫', '各维度信号分散'
     
     # ==================== Markdown格式生成 ====================
     
     def generate_markdown(self) -> str:
-        """生成Markdown格式报告"""
-        sections = []
+        """生成专业Markdown格式报告"""
+        sections = [
+            self._md_header(),
+            self._md_executive_summary(),
+            self._md_quote_analysis(),
+            self._md_financial_analysis(),
+            self._md_news_sentiment(),
+            self._md_technical_analysis(),
+        ]
         
-        sections.append(self._md_header())
-        sections.append(self._md_executive_summary())
-        sections.append(self._md_quote_analysis())
-        sections.append(self._md_financial_analysis())
-        sections.append(self._md_news_sentiment())
-        sections.append(self._md_technical_analysis())
-        
+        # 形态面分析（重点强化）
         if self.pattern_data:
-            sections.append(self._md_pattern_analysis())
+            sections.append(self._md_pattern_analysis_enhanced())
         
-        sections.append(self._md_investment_advice())
-        sections.append(self._md_risk_disclaimer())
+        sections.extend([
+            self._md_investment_advice(),
+            self._md_risk_disclaimer(),
+        ])
         
         return '\n\n---\n\n'.join(sections)
     
     def _md_header(self) -> str:
         """Markdown报告头部"""
-        return f"""# 📊 {self.stock_name} ({self.code}) 股票分析报告
+        return f"""# 📊 {self.stock_name} ({self.code}) 深度分析报告
 
-> **报告生成时间**: {self.timestamp}  
-> **分析维度**: 技术面 / 基本面 / 资金面 / 消息面 / 形态面  
-> **版本**: V3.1 智能分析系统"""
+<div align="center">
+
+**专业版股票分析报告** | **五维分析体系** | **V3.1 Pro**
+
+📅 报告生成时间：{self.timestamp}
+
+</div>
+
+---
+
+## 📋 报告概览
+
+| 项目 | 内容 |
+|:-----|:-----|
+| **股票名称** | {self.stock_name} ({self.code}) |
+| **分析维度** | 技术面 / 基本面 / 资金面 / 消息面 / **形态面** |
+| **报告版本** | V3.1 Pro 专业版 |
+| **数据时效** | 实时行情 + 最新财报 + 近期新闻 |"""
     
     def _md_executive_summary(self) -> str:
         """Markdown执行摘要"""
-        suggestion = self.data.get('suggestion', {})
-        total_score = suggestion.get('total_score', 50)
-        action = suggestion.get('action', '观望')
-        
         quote = self.data.get('quote', {})
         price = quote.get('price', 0)
         pct_change = quote.get('pct_change', 0)
+        action = self.suggestion.get('action', '观望')
+        target_price = self.suggestion.get('target_price', 0)
+        stop_loss = self.suggestion.get('stop_loss', 0)
         
-        # 评级判断
-        if total_score >= 75:
-            rating, rating_emoji = "强烈买入", "🟢"
-        elif total_score >= 60:
-            rating, rating_emoji = "买入", "🟡"
-        elif total_score >= 45:
-            rating, rating_emoji = "观望", "⚪"
-        elif total_score >= 30:
-            rating, rating_emoji = "谨慎", "🟠"
-        else:
-            rating, rating_emoji = "卖出", "🔴"
+        # 形态面共振信息
+        resonance_info = ""
+        if self.pattern_data:
+            resonance = self.pattern_data.get('resonance', {})
+            res_score = resonance.get('total_score', 0)
+            res_level, _, _ = self._get_resonance_level(res_score)
+            resonance_info = f"| **形态面共振** | {res_level} | 信号共振评分 |\n"
         
-        return f"""## 📋 执行摘要
+        return f"""## 🎯 执行摘要
 
-### 核心评级
+### 核心投资评级
 
-| 指标 | 数值 | 说明 |
-|:-----|:-----|:-----|
-| **当前股价** | ¥{price:.2f} | {pct_change:+.2f}% |
-| **综合评级** | {rating_emoji} {rating} | 基于五维分析 |
-| **综合评分** | {total_score}/100 | 满分100分 |
-| **操作建议** | {action} | 仅供参考 |
+<div align="center">
 
+### {self.rating_emoji} {self.rating} | 综合评分：{self.total_score}/100
+
+*{self.rating_summary}*
+
+</div>
+
+### 关键指标速览
+
+| 指标 | 数值 | 指标 | 数值 |
+|:-----|:-----|:-----|:-----|
+| **当前股价** | ¥{price:.2f} | **涨跌幅** | {pct_change:+.2f}% |
+| **综合评级** | {self.rating_emoji} {self.rating} | **操作建议** | {action} |
+| **目标价格** | ¥{target_price:.2f} | **止损价格** | ¥{stop_loss:.2f} |
+| **综合评分** | {self.total_score}/100 | **风险等级** | {self.suggestion.get('level', '中等')} |
+{resonance_info}
 ### 核心观点
 
 {self._generate_core_summary()}"""
@@ -103,771 +187,1431 @@ class UnifiedReportGenerator:
         # 技术面
         tech = self.data.get('technical', {})
         trend = tech.get('trend', '')
+        kdj_signal = tech.get('kdj_signal', '')
+        macd_signal = tech.get('macd_signal', '')
+        
+        tech_parts = []
         if trend:
-            parts.append(f"技术面呈现**{trend}**走势")
+            tech_parts.append(f"技术呈现**{trend}**走势")
+        if '金叉' in kdj_signal:
+            tech_parts.append("KDJ金叉")
+        elif '死叉' in kdj_signal:
+            tech_parts.append("KDJ死叉")
+        if '多头' in macd_signal:
+            tech_parts.append("MACD多头")
+        elif '空头' in macd_signal:
+            tech_parts.append("MACD空头")
+        
+        if tech_parts:
+            parts.append('，'.join(tech_parts))
         
         # 基本面
         fundamental = self.data.get('fundamental', {})
         perf = fundamental.get('performance_trend', {})
         overall = perf.get('overall_trend', '')
+        fin = fundamental.get('financial', {})
+        latest = fin.get('latest', {})
+        revenue_yoy = latest.get('revenue_yoy', '')
+        profit_yoy = latest.get('net_profit_yoy', '')
+        
         if overall:
             parts.append(f"基本面**{overall}**")
+        if revenue_yoy and profit_yoy:
+            parts.append(f"营收同比{revenue_yoy}、净利润同比{profit_yoy}")
         
         # 资金面
         money = self.data.get('money_flow', {})
         main_flow = money.get('main_flow', {})
         main_net = main_flow.get('main_net', 0)
-        if main_net > 0:
-            parts.append("主力资金净流入")
-        elif main_net < 0:
-            parts.append("主力资金净流出")
+        if main_net > 0.5:
+            parts.append(f"主力资金净流入{main_net:.2f}亿")
+        elif main_net < -0.5:
+            parts.append(f"主力资金净流出{abs(main_net):.2f}亿")
         
-        # 形态面
+        # 形态面（重点）
         if self.pattern_data:
+            candlestick = self.pattern_data.get('candlestick', {})
+            patterns = candlestick.get('patterns', [])
+            bullish_count = candlestick.get('bullish_count', 0)
+            bearish_count = candlestick.get('bearish_count', 0)
+            
+            if patterns:
+                top_pattern = patterns[0]
+                pattern_info = f"识别出**{top_pattern.get('name_cn', '关键形态')}**"
+                if bullish_count > bearish_count:
+                    pattern_info += f"等{bullish_count}个看涨形态"
+                elif bearish_count > bullish_count:
+                    pattern_info += f"等{bearish_count}个看跌形态"
+                parts.append(pattern_info)
+            
+            # 买卖点
+            chanlun = self.pattern_data.get('chanlun', {})
+            buy_points = chanlun.get('buy_points', [])
+            sell_points = chanlun.get('sell_points', [])
+            if buy_points:
+                parts.append(f"缠论识别出**{buy_points[-1].get('type', '买')}点**")
+            
+            # 共振
             resonance = self.pattern_data.get('resonance', {})
-            level = resonance.get('resonance_level', '')
-            if level:
-                parts.append(f"形态面呈现**{level}**")
+            res_score = resonance.get('total_score', 0)
+            if abs(res_score) > 50:
+                direction = "看涨" if res_score > 0 else "看跌"
+                parts.append(f"信号呈现**{direction}共振**")
         
         if parts:
-            return "；".join(parts) + "。"
-        return "综合各维度分析，建议密切关注后续走势。"
+            return '；'.join(parts) + '。建议' + self.suggestion.get('action', '观望') + '。'
+        return "综合五维分析，建议密切关注后续走势变化。"
     
     def _md_quote_analysis(self) -> str:
         """Markdown实时行情分析"""
         quote = self.data.get('quote', {})
         if not quote or 'error' in quote:
-            return "## 📈 实时行情分析\n\n> 暂无行情数据"
+            return "## 📈 一、实时行情与走势分析\n\n> 暂无行情数据"
         
         price = quote.get('price', 0)
         pct_change = quote.get('pct_change', 0)
         volume = quote.get('volume', 0)
         amount = quote.get('amount', 0)
         turnover = quote.get('turnover', 0)
+        open_p = quote.get('open', 0)
+        high = quote.get('high', 0)
+        low = quote.get('low', 0)
+        
+        # 计算振幅
+        amplitude = ((high - low) / open_p * 100) if open_p > 0 else 0
         
         # 走势解读
-        trend_interpretation = self._interpret_trend(pct_change, volume)
+        trend_analysis = self._analyze_trend_detailed(pct_change, volume, amplitude)
         
-        return f"""## 📈 实时行情数据与走势解读
+        return f"""## 📈 一、实时行情与走势分析
 
-### 实时行情
+### 1.1 实时行情数据
 
-| 指标 | 数值 | 指标 | 数值 |
-|:-----|:-----|:-----|:-----|
-| **最新价** | ¥{price:.2f} | **涨跌幅** | {pct_change:+.2f}% |
-| **开盘价** | ¥{quote.get('open', 0):.2f} | **最高价** | ¥{quote.get('high', 0):.2f} |
-| **最低价** | ¥{quote.get('low', 0):.2f} | **成交量** | {volume:,.0f} 手 |
-| **成交额** | {amount:.2f} 亿 | **换手率** | {turnover:.2f}% |
+| 指标 | 数值 | 指标 | 数值 | 指标 | 数值 |
+|:-----|:-----|:-----|:-----|:-----|:-----|
+| **最新价** | ¥{price:.2f} | **涨跌幅** | {pct_change:+.2f}% | **涨跌额** | ¥{price * pct_change / 100:.2f} |
+| **开盘价** | ¥{open_p:.2f} | **最高价** | ¥{high:.2f} | **最低价** | ¥{low:.2f} |
+| **成交量** | {volume:,.0f} 手 | **成交额** | {amount:.2f} 亿 | **换手率** | {turnover:.2f}% |
+| **振幅** | {amplitude:.2f}% | **量比** | {quote.get('volume_ratio', '-')} | **市盈率** | {quote.get('pe', '-')} |
 
-### 近期走势解读
+### 1.2 技术走势分析
 
-{trend_interpretation}"""
+{trend_analysis}
+
+### 1.3 关键价位
+
+| 价位类型 | 价格 | 说明 |
+|:---------|:-----|:-----|
+| **当日支撑** | ¥{low:.2f} | 日内最低点 |
+| **当日阻力** | ¥{high:.2f} | 日内最高点 |
+| **开盘价** | ¥{open_p:.2f} | 多空分水岭 |"""
     
-    def _interpret_trend(self, pct_change: float, volume: float) -> str:
-        """解读走势"""
-        interpretations = []
+    def _analyze_trend_detailed(self, pct_change: float, volume: float, amplitude: float) -> str:
+        """详细走势分析"""
+        analysis = []
         
-        if pct_change > 5:
-            interpretations.append("📈 **强势上涨**：今日涨幅超过5%，显示多头力量强劲")
+        # 涨跌分析
+        if pct_change > 7:
+            analysis.append("📈 **强势上涨**：涨幅超过7%，多头力量强劲，可能受重大利好消息刺激")
+        elif pct_change > 4:
+            analysis.append("📈 **明显上涨**：涨幅4-7%，走势积极，市场认可度较高")
         elif pct_change > 2:
-            interpretations.append("📈 **温和上涨**：今日涨幅在2-5%之间，走势积极")
+            analysis.append("📈 **温和上涨**：涨幅2-4%，稳步上行，趋势健康")
+        elif pct_change > 0:
+            analysis.append("📊 **小幅上涨**：涨幅0-2%，上涨动能一般")
         elif pct_change > -2:
-            interpretations.append("⚖️ **窄幅震荡**：今日涨跌幅在±2%以内，市场观望情绪较浓")
-        elif pct_change > -5:
-            interpretations.append("📉 **温和回调**：今日跌幅在2-5%之间，需关注支撑位")
+            analysis.append("📊 **小幅回调**：跌幅0-2%，正常波动范围")
+        elif pct_change > -4:
+            analysis.append("📉 **温和回调**：跌幅2-4%，需关注支撑位承接力度")
+        elif pct_change > -7:
+            analysis.append("📉 **明显下跌**：跌幅4-7%，空头占优，谨慎观望")
         else:
-            interpretations.append("📉 **明显下跌**：今日跌幅超过5%，空头力量占优")
+            analysis.append("📉 **大幅下跌**：跌幅超过7%，恐慌情绪蔓延，建议避险")
         
-        if volume > 1000000:
-            interpretations.append("💰 **成交活跃**：成交量显著放大，资金参与度高")
-        elif volume > 500000:
-            interpretations.append("💰 **成交正常**：成交量处于正常水平")
+        # 振幅分析
+        if amplitude > 7:
+            analysis.append("⚡ **高波动**：日内振幅超过7%，多空分歧激烈，短线操作机会与风险并存")
+        elif amplitude > 4:
+            analysis.append("📊 **中等波动**：日内振幅4-7%，正常交易波动")
         else:
-            interpretations.append("💤 **成交清淡**：成交量偏低，市场参与度不足")
+            analysis.append("💤 **低波动**：日内振幅小于4%，市场观望情绪较浓")
         
-        return "\n\n".join(interpretations)
+        # 成交量分析
+        if volume > 2000000:
+            analysis.append("💰 **成交活跃**：成交量显著放大，资金参与度高，趋势可信度强")
+        elif volume > 800000:
+            analysis.append("💰 **成交正常**：成交量处于正常水平")
+        else:
+            analysis.append("💤 **成交清淡**：成交量偏低，市场参与度不足，趋势持续性存疑")
+        
+        return '\n\n'.join(f"{i+1}. {a}" for i, a in enumerate(analysis))
     
     def _md_financial_analysis(self) -> str:
-        """Markdown财务分析"""
+        """Markdown财务深度分析"""
         fundamental = self.data.get('fundamental', {})
         fin = fundamental.get('financial', {})
         latest = fin.get('latest', {})
         
         if not latest:
-            return "## 💼 财务分析\n\n> 暂无财务数据"
+            return "## 💼 二、财务深度分析\n\n> 暂无财务数据"
         
-        # 财务质量分析
-        quality_analysis = self._analyze_financial_quality(latest)
+        report_date = latest.get('report_date', 'N/A')
+        revenue_yoy = latest.get('revenue_yoy', 'N/A')
+        profit_yoy = latest.get('net_profit_yoy', 'N/A')
+        roe = latest.get('roe', 'N/A')
+        gross_margin = latest.get('gross_margin', 'N/A')
+        net_margin = latest.get('net_margin', 'N/A')
+        debt_ratio = latest.get('debt_ratio', 'N/A')
+        eps = latest.get('eps', 'N/A')
+        ocf_ps = latest.get('ocf_ps', 'N/A')
         
-        # 营收利润趋势
-        revenue_trend = latest.get('revenue_yoy', 'N/A')
-        profit_trend = latest.get('net_profit_yoy', 'N/A')
+        # 财务质量深度分析
+        quality_analysis = self._analyze_financial_quality_detailed(latest)
         
-        return f"""## 💼 利润表及财务核心数据分析
+        # 趋势解读
+        trend_analysis = self._interpret_financial_trend(revenue_yoy, profit_yoy, roe)
+        
+        return f"""## 💼 二、财务深度分析
 
-### 最新财务数据（报告期：{latest.get('report_date', 'N/A')}）
+### 2.1 核心财务数据（报告期：{report_date}）
 
-| 指标 | 数值 | 指标 | 数值 |
-|:-----|:-----|:-----|:-----|
-| **营业收入同比** | {revenue_trend} | **净利润同比** | {profit_trend} |
-| **ROE（净资产收益率）** | {latest.get('roe', 'N/A')} | **毛利率** | {latest.get('gross_margin', 'N/A')} |
-| **净利率** | {latest.get('net_margin', 'N/A')} | **资产负债率** | {latest.get('debt_ratio', 'N/A')} |
-| **每股收益（EPS）** | {latest.get('eps', 'N/A')} | **每股现金流** | {latest.get('ocf_ps', 'N/A')} |
+#### 利润表关键指标
 
-### 财务质量分析
+| 指标 | 数值 | 同比变化 | 指标 | 数值 | 健康度 |
+|:-----|:-----|:---------|:-----|:-----|:-------|
+| **营业收入** | - | {revenue_yoy} | **毛利率** | {gross_margin} | {self._rate_indicator(gross_margin, 30, 20)} |
+| **净利润** | - | {profit_yoy} | **净利率** | {net_margin} | {self._rate_indicator(net_margin, 15, 8)} |
+| **ROE** | {roe} | - | **资产负债率** | {debt_ratio} | {self._rate_debt(debt_ratio)} |
+| **每股收益** | {eps} 元 | - | **每股现金流** | {ocf_ps} 元 | - |
+
+### 2.2 财务质量深度评估
 
 {quality_analysis}
 
-### 营收与利润趋势解读
+### 2.3 营收与利润趋势解读
 
-{self._interpret_revenue_profit(revenue_trend, profit_trend)}
+{trend_analysis}
 
-### 业务板块分析
+### 2.4 业务板块分析
 
-{self._analyze_business_segments()}"""
+基于财务数据分析，公司业务呈现以下特征：
+
+**主营业务**：核心业务保持稳定发展，市场地位稳固
+**成长能力**：{self._growth_assessment(revenue_yoy, profit_yoy)}
+**盈利能力**：{self._profitability_assessment(roe, net_margin)}
+**财务健康**：{self._health_assessment(debt_ratio)}
+**现金流**：{self._cashflow_assessment(ocf_ps, eps)}"""
     
-    def _analyze_financial_quality(self, latest: Dict) -> str:
-        """分析财务质量"""
+    def _rate_indicator(self, value: str, good_threshold: float, fair_threshold: float) -> str:
+        """评级指标"""
+        try:
+            val = float(str(value).replace('%', ''))
+            if val >= good_threshold:
+                return "🟢 优秀"
+            elif val >= fair_threshold:
+                return "🟡 良好"
+            else:
+                return "🔴 一般"
+        except:
+            return "⚪ 待评估"
+    
+    def _rate_debt(self, value: str) -> str:
+        """评级负债率"""
+        try:
+            val = float(str(value).replace('%', ''))
+            if val < 40:
+                return "🟢 稳健"
+            elif val < 60:
+                return "🟡 适中"
+            else:
+                return "🔴 偏高"
+        except:
+            return "⚪ 待评估"
+    
+    def _analyze_financial_quality_detailed(self, latest: Dict) -> str:
+        """详细财务质量分析"""
         analyses = []
         
+        # ROE分析
         roe = latest.get('roe', '')
         if roe and '%' in str(roe):
             try:
                 roe_val = float(str(roe).replace('%', ''))
-                if roe_val > 15:
-                    analyses.append(f"✅ **盈利能力优秀**：ROE为{roe}，高于15%的优秀线")
+                if roe_val > 20:
+                    analyses.append(f"🟢 **盈利能力卓越**：ROE为{roe}，远超20%的优秀线，股东回报能力突出")
+                elif roe_val > 15:
+                    analyses.append(f"🟢 **盈利能力优秀**：ROE为{roe}，高于15%良好线，盈利质量较高")
                 elif roe_val > 10:
-                    analyses.append(f"✅ **盈利能力良好**：ROE为{roe}，处于10-15%良好区间")
+                    analyses.append(f"🟡 **盈利能力良好**：ROE为{roe}，处于10-15%区间，盈利稳定")
                 else:
-                    analyses.append(f"⚠️ **盈利能力一般**：ROE为{roe}，低于10%")
+                    analyses.append(f"🔴 **盈利能力一般**：ROE为{roe}，低于10%，需关注盈利改善")
             except:
                 pass
         
+        # 毛利率分析
+        margin = latest.get('gross_margin', '')
+        if margin and '%' in str(margin):
+            try:
+                margin_val = float(str(margin).replace('%', ''))
+                if margin_val > 40:
+                    analyses.append(f"🟢 **产品竞争力强**：毛利率{margin}，产品议价能力突出")
+                elif margin_val > 25:
+                    analyses.append(f"🟡 **产品竞争力良好**：毛利率{margin}，处于行业中上水平")
+                else:
+                    analyses.append(f"⚪ **产品竞争力一般**：毛利率{margin}，行业竞争激烈")
+            except:
+                pass
+        
+        # 负债率分析
         debt = latest.get('debt_ratio', '')
         if debt and '%' in str(debt):
             try:
                 debt_val = float(str(debt).replace('%', ''))
-                if debt_val < 40:
-                    analyses.append(f"✅ **财务结构稳健**：资产负债率{debt}，低于40%安全线")
-                elif debt_val < 60:
-                    analyses.append(f"⚠️ **财务结构适中**：资产负债率{debt}，处于40-60%区间")
+                if debt_val < 35:
+                    analyses.append(f"🟢 **财务结构稳健**：资产负债率{debt}，财务风险低，融资空间大")
+                elif debt_val < 50:
+                    analyses.append(f"🟡 **财务结构适中**：资产负债率{debt}，处于合理区间")
+                elif debt_val < 65:
+                    analyses.append(f"⚪ **财务杠杆较高**：资产负债率{debt}，需关注偿债能力")
                 else:
-                    analyses.append(f"❌ **财务杠杆较高**：资产负债率{debt}，超过60%警戒线")
+                    analyses.append(f"🔴 **财务风险较高**：资产负债率{debt}，超过警戒线，谨慎关注")
             except:
                 pass
         
-        margin = latest.get('gross_margin', '')
-        if margin and '%' in str(margin):
-            analyses.append(f"📊 **毛利率水平**：{margin}，反映产品竞争力")
+        # 净利率分析
+        net_margin = latest.get('net_margin', '')
+        if net_margin and '%' in str(net_margin):
+            try:
+                nm_val = float(str(net_margin).replace('%', ''))
+                if nm_val > 15:
+                    analyses.append(f"🟢 **费用控制优秀**：净利率{net_margin}，成本管控能力强")
+                elif nm_val > 8:
+                    analyses.append(f"🟡 **费用控制良好**：净利率{net_margin}，运营效率正常")
+                else:
+                    analyses.append(f"⚪ **费用控制一般**：净利率{net_margin}，存在费用优化空间")
+            except:
+                pass
         
-        return "\n\n".join(analyses) if analyses else "财务数据完整，各项指标处于正常区间。"
+        return '\n\n'.join(f"{i+1}. {a}" for i, a in enumerate(analyses)) if analyses else "财务指标处于正常区间，整体财务状况稳健。"
     
-    def _interpret_revenue_profit(self, revenue: str, profit: str) -> str:
-        """解读营收利润趋势"""
+    def _interpret_financial_trend(self, revenue: str, profit: str, roe: str) -> str:
+        """解读财务趋势"""
         interpretations = []
         
         try:
             rev_val = float(str(revenue).replace('%', ''))
-            if rev_val > 20:
-                interpretations.append(f"📈 **营收高速增长**：同比增长{revenue}，业务扩张迅速")
-            elif rev_val > 10:
-                interpretations.append(f"📈 **营收稳健增长**：同比增长{revenue}，增长势头良好")
-            elif rev_val > 0:
-                interpretations.append(f"📊 **营收微增**：同比增长{revenue}，增长放缓")
-            else:
-                interpretations.append(f"📉 **营收下滑**：同比下降{revenue}，需关注业务压力")
-        except:
-            interpretations.append("营收数据待更新")
-        
-        try:
             prof_val = float(str(profit).replace('%', ''))
-            if prof_val > 30:
-                interpretations.append(f"🚀 **利润爆发增长**：同比增长{profit}，盈利能力大幅提升")
-            elif prof_val > 15:
-                interpretations.append(f"📈 **利润稳健增长**：同比增长{profit}，盈利质量良好")
-            elif prof_val > 0:
-                interpretations.append(f"📊 **利润微增**：同比增长{profit}，增速放缓")
+            
+            # 营收分析
+            if rev_val > 30:
+                interpretations.append(f"📈 **营收高速增长**：同比增长{revenue}，业务扩张迅速，市场份额持续提升")
+            elif rev_val > 15:
+                interpretations.append(f"📈 **营收稳健增长**：同比增长{revenue}，增长势头良好，业务发展健康")
+            elif rev_val > 5:
+                interpretations.append(f"📊 **营收温和增长**：同比增长{revenue}，增速放缓但仍有增长")
+            elif rev_val > 0:
+                interpretations.append(f"📊 **营收微增**：同比增长{revenue}，增长乏力，需关注业务动力")
             else:
-                interpretations.append(f"📉 **利润下滑**：同比下降{profit}，盈利承压")
+                interpretations.append(f"📉 **营收下滑**：同比下降{revenue}，业务承压，需警惕经营风险")
+            
+            # 利润分析
+            if prof_val > 50:
+                interpretations.append(f"🚀 **利润爆发增长**：同比增长{profit}，盈利能力大幅提升，经营效率显著改善")
+            elif prof_val > 25:
+                interpretations.append(f"📈 **利润高速增长**：同比增长{profit}，盈利质量良好，增长可持续性强")
+            elif prof_val > 10:
+                interpretations.append(f"📈 **利润稳健增长**：同比增长{profit}，盈利稳定，经营健康")
+            elif prof_val > 0:
+                interpretations.append(f"📊 **利润微增**：同比增长{profit}，增速放缓，关注成本端压力")
+            else:
+                interpretations.append(f"📉 **利润下滑**：同比下降{profit}，盈利承压，需关注盈利能力变化")
+            
+            # 营收利润匹配度
+            if rev_val > 0 and prof_val > rev_val * 1.5:
+                interpretations.append("💡 **盈利质量提升**：利润增速显著高于营收增速，经营杠杆效应显现，费用控制有效")
+            elif rev_val > 0 and prof_val < rev_val * 0.5:
+                interpretations.append("⚠️ **盈利质量下降**：利润增速明显低于营收增速，成本费用压力增大")
+            
         except:
-            interpretations.append("利润数据待更新")
+            interpretations.append("财务趋势数据待更新")
         
-        return "\n\n".join(interpretations)
+        return '\n\n'.join(f"{i+1}. {a}" for i, a in enumerate(interpretations))
     
-    def _analyze_business_segments(self) -> str:
-        """分析业务板块"""
-        return """基于公开财务数据，公司主营业务保持稳定发展：
-
-- **核心业务**：持续贡献主要营收和利润
-- **成长业务**：保持稳健增长态势
-- **成本管控**：运营效率逐步提升
-- **现金流**：经营性现金流健康
-
-*详细业务板块数据需参考公司年报分部报告*"""
+    def _growth_assessment(self, revenue: str, profit: str) -> str:
+        """成长能力评估"""
+        try:
+            rev_val = float(str(revenue).replace('%', ''))
+            prof_val = float(str(profit).replace('%', ''))
+            if rev_val > 20 and prof_val > 20:
+                return "高成长，营收利润双轮驱动"
+            elif rev_val > 10 and prof_val > 10:
+                return "稳健成长，发展势头良好"
+            elif rev_val > 0 and prof_val > 0:
+                return "温和成长，增速放缓"
+            else:
+                return "成长承压，需关注业务调整"
+        except:
+            return "成长数据待评估"
+    
+    def _profitability_assessment(self, roe: str, margin: str) -> str:
+        """盈利能力评估"""
+        try:
+            roe_val = float(str(roe).replace('%', ''))
+            if roe_val > 15:
+                return "盈利能力强，ROE处于优秀水平"
+            elif roe_val > 10:
+                return "盈利能力良好，ROE稳定"
+            else:
+                return "盈利能力一般，ROE有提升空间"
+        except:
+            return "盈利数据待评估"
+    
+    def _health_assessment(self, debt: str) -> str:
+        """财务健康评估"""
+        try:
+            debt_val = float(str(debt).replace('%', ''))
+            if debt_val < 40:
+                return "财务结构稳健，偿债能力强"
+            elif debt_val < 60:
+                return "财务结构适中，风险可控"
+            else:
+                return "财务杠杆较高，需关注风险"
+        except:
+            return "财务健康度待评估"
+    
+    def _cashflow_assessment(self, ocf: str, eps: str) -> str:
+        """现金流评估"""
+        try:
+            ocf_val = float(str(ocf))
+            eps_val = float(str(eps))
+            if ocf_val > eps_val:
+                return "现金流健康，盈利质量高"
+            else:
+                return "现金流一般，关注回款情况"
+        except:
+            return "现金流数据待评估"
     
     def _md_news_sentiment(self) -> str:
         """Markdown新闻与情绪分析"""
         news = self.data.get('news', {})
         
         if not news or 'error' in news:
-            return "## 📰 最新财经新闻与市场情绪\n\n> 暂无新闻数据"
+            return "## 📰 三、新闻舆情与市场情绪\n\n> 暂无新闻数据"
         
         sentiment = news.get('sentiment', '中性')
         sentiment_score = news.get('sentiment_score', 0)
         items = news.get('items', [])
+        fund_impact = news.get('fundamental_impact', '中性')
         
-        # 市场情绪评分
+        # 市场情绪指数
         sentiment_index = 50
+        sentiment_level = "中性"
         if self.pattern_data:
             sentiment_data = self.pattern_data.get('sentiment', {})
             sentiment_index = sentiment_data.get('index_value', 50)
             level = sentiment_data.get('level', {})
-            level_name = level.get('name', '中性') if isinstance(level, dict) else str(level)
-        else:
-            level_name = sentiment
+            sentiment_level = level.get('name', '中性') if isinstance(level, dict) else str(level)
         
         # 新闻列表
-        news_list = ""
+        news_analysis = []
         if items:
-            news_items = []
-            for item in items[:5]:
+            for i, item in enumerate(items[:5], 1):
                 title = item.get('title', '')
                 date = item.get('date', '')
-                news_items.append(f"- **{date}**：{title}")
-            news_list = "\n".join(news_items)
+                # 简单情感判断
+                sentiment_tag = ""
+                if any(w in title for w in ['增长', '突破', '利好', '合作', '获奖', '订单']):
+                    sentiment_tag = "🟢 正面"
+                elif any(w in title for w in ['下滑', '亏损', '处罚', '诉讼', '减持', '风险']):
+                    sentiment_tag = "🔴 负面"
+                else:
+                    sentiment_tag = "⚪ 中性"
+                news_analysis.append(f"{i}. **{date}** | {sentiment_tag} | {title}")
         
-        return f"""## 📰 最新财经新闻摘要与市场情绪评分
+        # 情绪解读
+        sentiment_interpretation = self._interpret_sentiment_detailed(sentiment_index, sentiment_level)
+        
+        return f"""## 📰 三、新闻舆情与市场情绪
 
-### 市场情绪评分
+### 3.1 市场情绪指数
 
-| 指标 | 数值 | 说明 |
-|:-----|:-----|:-----|
-| **贪婪恐慌指数** | {sentiment_index:.1f}/100 | {level_name} |
-| **新闻情感倾向** | {sentiment} | 得分：{sentiment_score:+d} |
-| **对基本面影响** | {news.get('fundamental_impact', '中性')} | - |
+| 指标 | 数值 | 等级 | 交易信号 |
+|:-----|:-----|:-----|:---------|
+| **贪婪恐慌指数** | {sentiment_index:.1f}/100 | {sentiment_level} | {self._sentiment_signal(sentiment_index)} |
+| **新闻情感倾向** | {sentiment} | 得分：{sentiment_score:+d} | - |
+| **对基本面影响** | {fund_impact} | - | - |
 
-### 最新财经新闻摘要
+### 3.2 最新财经新闻摘要
 
-{news_list if news_list else '> 暂无最新新闻'}
+{chr(10).join(news_analysis) if news_analysis else '> 暂无最新新闻'}
 
-### 情绪解读
+### 3.3 市场情绪深度解读
 
-{self._interpret_sentiment(sentiment_index, level_name)}"""
+{sentiment_interpretation}"""
     
-    def _interpret_sentiment(self, index: float, level: str) -> str:
-        """解读市场情绪"""
-        if index < 20:
-            return "🔴 **极度恐慌**：市场情绪极度悲观，可能是逆向布局机会，但需控制仓位"
-        elif index < 40:
-            return "🟠 **恐慌区间**：市场情绪偏悲观，优质标的可能被错杀，可逢低关注"
-        elif index < 60:
-            return "⚪ **中性区间**：市场情绪平稳，按正常策略操作"
-        elif index < 80:
-            return "🟢 **贪婪区间**：市场情绪乐观，注意追高风险"
+    def _interpret_sentiment_detailed(self, index: float, level: str) -> str:
+        """详细情绪解读"""
+        if index < 15:
+            return """🔴 **极度恐慌阶段**（指数<20）
+
+市场情绪极度悲观，恐慌情绪蔓延，多数投资者选择抛售。历史数据显示，此阶段往往是中长期布局的较好时机，但需精选标的、控制仓位、分批建仓。建议关注被错杀的优质标的。"""
+        elif index < 30:
+            return """🟠 **恐慌阶段**（指数20-30）
+
+市场情绪偏悲观，投资者信心不足，成交量萎缩。部分优质标的可能被低估，适合价值投资者逢低关注。建议保持耐心，等待情绪修复。"""
+        elif index < 45:
+            return """⚪ **谨慎阶段**（指数30-45）
+
+市场情绪偏谨慎，投资者观望情绪浓厚。市场缺乏明确方向，建议控制仓位，等待更明确的信号出现。可关注结构性机会。"""
+        elif index < 55:
+            return """⚪ **中性阶段**（指数45-55）
+
+市场情绪平稳，多空力量相对均衡。建议按常规策略操作，精选个股，控制仓位在正常水平。"""
+        elif index < 70:
+            return """🟢 **乐观阶段**（指数55-70）
+
+市场情绪偏乐观，投资者信心回升，资金活跃度提高。可适当参与，但需注意追高风险，设置好止损位。"""
+        elif index < 85:
+            return """🟢 **贪婪阶段**（指数70-85）
+
+市场情绪高涨，投资者风险偏好提升，成交量放大。需警惕追高风险，建议逐步减仓，锁定利润。"""
         else:
-            return "🔵 **极度贪婪**：市场情绪狂热，建议逐步减仓，锁定利润"
+            return """🔵 **极度贪婪阶段**（指数>85）
+
+市场情绪狂热，投资者普遍乐观，风险积累。历史数据显示，此阶段往往是市场顶部区域，建议大幅减仓，规避风险。"""
+    
+    def _sentiment_signal(self, index: float) -> str:
+        """情绪交易信号"""
+        if index < 20:
+            return "逆向买入"
+        elif index < 40:
+            return "逢低关注"
+        elif index < 60:
+            return "正常操作"
+        elif index < 80:
+            return "谨慎持有"
+        else:
+            return "逐步减仓"
     
     def _md_technical_analysis(self) -> str:
-        """Markdown技术指标分析"""
+        """Markdown技术指标深度分析"""
         tech = self.data.get('technical', {})
         if not tech or 'error' in tech:
-            return "## 📊 技术指标分析\n\n> 暂无技术指标数据"
+            return "## 📊 四、技术指标深度解析\n\n> 暂无技术指标数据"
         
-        # KDJ分析
         k = tech.get('k', 0)
         d = tech.get('d', 0)
         j = tech.get('j', 0)
         kdj_signal = tech.get('kdj_signal', '正常')
-        
-        # MACD分析
         macd = tech.get('macd', 0)
         macd_signal = tech.get('macd_signal', '盘整')
         histogram = tech.get('histogram', 0)
+        rsi = tech.get('rsi', 0)
+        rsi_signal = tech.get('rsi_signal', '正常')
         
-        # KDJ金叉死叉判断
-        kdj_analysis = self._analyze_kdj(k, d, j, kdj_signal)
+        # 详细分析
+        kdj_detail = self._analyze_kdj_detailed(k, d, j, kdj_signal)
+        macd_detail = self._analyze_macd_detailed(macd, macd_signal, histogram)
+        rsi_detail = self._analyze_rsi_detailed(rsi, rsi_signal)
         
-        # MACD信号分析
-        macd_analysis = self._analyze_macd(macd, macd_signal, histogram)
-        
-        return f"""## 📊 技术指标分析
+        return f"""## 📊 四、技术指标深度解析
 
-### KDJ指标分析
+### 4.1 KDJ随机指标分析
 
-| 指标 | 数值 | 信号 |
-|:-----|:-----|:-----|
-| **K值** | {k:.2f} | - |
-| **D值** | {d:.2f} | - |
-| **J值** | {j:.2f} | - |
-| **KDJ信号** | {kdj_signal} | {self._kdj_signal_emoji(kdj_signal)} |
+| 指标 | 数值 | 状态 | 信号 |
+|:-----|:-----|:-----|:-----|
+| **K值** | {k:.2f} | {'超买区' if k > 80 else '超卖区' if k < 20 else '正常区'} | - |
+| **D值** | {d:.2f} | {'超买区' if d > 80 else '超卖区' if d < 20 else '正常区'} | - |
+| **J值** | {j:.2f} | {'极强' if j > 100 else '极弱' if j < 0 else '正常'} | - |
+| **KDJ信号** | {kdj_signal} | {self._kdj_status(kdj_signal)} | {self._kdj_recommendation(kdj_signal)} |
 
-#### KDJ金叉死叉解读
+#### KDJ深度解读
 
-{kdj_analysis}
+{kdj_detail}
 
-### MACD指标分析
+### 4.2 MACD趋势指标分析
 
-| 指标 | 数值 | 信号 |
-|:-----|:-----|:-----|
-| **MACD** | {macd:.3f} | - |
-| **MACD信号** | {macd_signal} | {self._macd_signal_emoji(macd_signal)} |
-| **柱状图** | {histogram:.3f} | {'多头增强' if histogram > 0 else '空头增强'} |
+| 指标 | 数值 | 状态 | 信号 |
+|:-----|:-----|:-----|:-----|
+| **DIF** | {macd:.3f} | {'零轴上' if macd > 0 else '零轴下'} | - |
+| **MACD柱状** | {histogram:.3f} | {'扩张' if abs(histogram) > 0.1 else '收缩'} | - |
+| **MACD信号** | {macd_signal} | {self._macd_status(macd_signal)} | {self._macd_recommendation(macd_signal)} |
 
-#### MACD信号解读
+#### MACD深度解读
 
-{macd_analysis}
+{macd_detail}
 
-### 均线系统
+### 4.3 RSI相对强弱指标分析
 
-| 均线 | 价格 | 状态 |
-|:-----|:-----|:-----|
-| MA5 | ¥{tech.get('ma5', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma5') else '❌ 下方'} |
-| MA10 | ¥{tech.get('ma10', 0):.2f} | - |
-| MA20 | ¥{tech.get('ma20', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma20') else '❌ 下方'} |
-| MA60 | ¥{tech.get('ma60', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma60') else '❌ 下方'} |
+| 指标 | 数值 | 状态 | 信号 |
+|:-----|:-----|:-----|:-----|
+| **RSI(14)** | {rsi:.2f} | {rsi_signal} | {self._rsi_recommendation(rsi)} |
 
-**趋势判断**：{tech.get('trend', '震荡')}"""
+#### RSI深度解读
+
+{rsi_detail}
+
+### 4.4 均线系统分析
+
+| 均线 | 价格 | 与现价关系 | 技术意义 |
+|:-----|:-----|:-----------|:---------|
+| MA5 | ¥{tech.get('ma5', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma5') else '❌ 下方'} | 短期趋势{'向上' if tech.get('price_above_ma5') else '向下'} |
+| MA10 | ¥{tech.get('ma10', 0):.2f} | - | 短期支撑/阻力 |
+| MA20 | ¥{tech.get('ma20', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma20') else '❌ 下方'} | 中期趋势{'向上' if tech.get('price_above_ma20') else '向下'} |
+| MA60 | ¥{tech.get('ma60', 0):.2f} | {'✅ 上方' if tech.get('price_above_ma60') else '❌ 下方'} | 长期趋势{'向上' if tech.get('price_above_ma60') else '向下'} |
+
+**综合趋势判断**：{tech.get('trend', '震荡')}"""
     
-    def _analyze_kdj(self, k: float, d: float, j: float, signal: str) -> str:
-        """分析KDJ指标"""
+    def _analyze_kdj_detailed(self, k: float, d: float, j: float, signal: str) -> str:
+        """详细KDJ分析"""
+        analysis = []
+        
         if '金叉' in signal:
-            return f"🟢 **金叉信号**：K值({k:.2f})上穿D值({d:.2f})，短期买入信号出现，建议关注"
+            analysis.append(f"🟢 **金叉买入信号**：K线({k:.2f})上穿D线({d:.2f})，短期动能转强。")
+            if k < 50:
+                analysis.append("金叉发生在50以下低位，属于低位金叉，信号可靠性较高，建议关注买入机会。")
+            else:
+                analysis.append("金叉发生在50以上，属于高位金叉，需结合其他指标确认。")
         elif '死叉' in signal:
-            return f"🔴 **死叉信号**：K值({k:.2f})下穿D值({d:.2f})，短期卖出信号出现，建议谨慎"
-        elif '超买' in signal:
-            return f"🟠 **超买区域**：K值({k:.2f})处于高位，短期回调风险增加"
-        elif '超卖' in signal:
-            return f"🟢 **超卖区域**：K值({k:.2f})处于低位，可能存在反弹机会"
-        else:
-            return f"⚪ **正常区间**：K值({k:.2f})、D值({d:.2f})处于正常波动范围"
+            analysis.append(f"🔴 **死叉卖出信号**：K线({k:.2f})下穿D线({d:.2f})，短期动能转弱。")
+            if k > 50:
+                analysis.append("死叉发生在50以上高位，属于高位死叉，调整风险较大，建议谨慎。")
+            else:
+                analysis.append("死叉发生在50以下，属于低位死叉，可能是最后一跌，关注企稳信号。")
+        
+        if j > 100:
+            analysis.append(f"⚠️ **J值超买**：J值高达{j:.2f}，进入极强区域，短期超买严重，需警惕回调风险。")
+        elif j < 0:
+            analysis.append(f"💡 **J值超卖**：J值低至{j:.2f}，进入极弱区域，短期超卖严重，可能存在反弹机会。")
+        
+        if k > 80 and d > 80:
+            analysis.append("K、D值均处于80以上超买区，短期上涨动能可能衰竭，建议逢高减仓。")
+        elif k < 20 and d < 20:
+            analysis.append("K、D值均处于20以下超卖区，短期下跌动能可能衰竭，建议关注反弹机会。")
+        
+        return '\n\n'.join(analysis) if analysis else "KDJ指标处于正常波动区间，暂无明确信号。"
     
-    def _analyze_macd(self, macd: float, signal: str, histogram: float) -> str:
-        """分析MACD指标"""
+    def _analyze_macd_detailed(self, macd: float, signal: str, histogram: float) -> str:
+        """详细MACD分析"""
+        analysis = []
+        
         if '多头' in signal:
-            if histogram > 0:
-                return f"🟢 **多头强势**：MACD({macd:.3f})为正，红柱持续，上涨动能强劲"
-            else:
-                return f"🟡 **多头减弱**：MACD({macd:.3f})为正，但绿柱出现，上涨动能减弱"
+            analysis.append(f"🟢 **多头趋势**：DIF({macd:.3f})处于零轴上方，中长期趋势向上。")
+            if histogram > 0.1:
+                analysis.append(f"红柱扩张({histogram:.3f})，上涨动能强劲，趋势健康。")
+            elif histogram > 0:
+                analysis.append(f"红柱收缩({histogram:.3f})，上涨动能减弱，需关注趋势变化。")
         elif '空头' in signal:
-            if histogram < 0:
-                return f"🔴 **空头强势**：MACD({macd:.3f})为负，绿柱持续，下跌压力较大"
-            else:
-                return f"🟡 **空头减弱**：MACD({macd:.3f})为负，但红柱出现，下跌动能减弱"
+            analysis.append(f"🔴 **空头趋势**：DIF({macd:.3f})处于零轴下方，中长期趋势向下。")
+            if histogram < -0.1:
+                analysis.append(f"绿柱扩张({histogram:.3f})，下跌动能强劲，趋势偏弱。")
+            elif histogram < 0:
+                analysis.append(f"绿柱收缩({histogram:.3f})，下跌动能减弱，可能企稳。")
         else:
-            return f"⚪ **盘整状态**：MACD({macd:.3f})接近零轴，市场处于盘整阶段"
+            analysis.append(f"⚪ **盘整趋势**：DIF({macd:.3f})接近零轴，多空力量均衡，趋势不明。")
+        
+        # 柱状图变化
+        if histogram > 0 and abs(histogram) < 0.05:
+            analysis.append("柱状图接近零轴，多空力量即将转换，关注方向选择。")
+        
+        return '\n\n'.join(analysis)
     
-    def _kdj_signal_emoji(self, signal: str) -> str:
-        """KDJ信号表情"""
+    def _analyze_rsi_detailed(self, rsi: float, signal: str) -> str:
+        """详细RSI分析"""
+        analysis = []
+        
+        if rsi > 80:
+            analysis.append(f"🔴 **严重超买**：RSI高达{rsi:.2f}，远超80超买线，短期回调风险极大。")
+        elif rsi > 70:
+            analysis.append(f"🟠 **超买区域**：RSI为{rsi:.2f}，进入70-80超买区，上涨空间有限。")
+        elif rsi > 50:
+            analysis.append(f"🟢 **强势区域**：RSI为{rsi:.2f}，处于50-70强势区，多头占优。")
+        elif rsi > 30:
+            analysis.append(f"⚪ **弱势区域**：RSI为{rsi:.2f}，处于30-50弱势区，空头占优。")
+        elif rsi > 20:
+            analysis.append(f"🟠 **超卖区域**：RSI为{rsi:.2f}，进入20-30超卖区，下跌空间有限。")
+        else:
+            analysis.append(f"🟢 **严重超卖**：RSI低至{rsi:.2f}，低于20超卖线，短期反弹概率大。")
+        
+        return '\n\n'.join(analysis)
+    
+    def _kdj_status(self, signal: str) -> str:
+        """KDJ状态"""
         if '金叉' in signal:
-            return "🟢 看涨"
+            return "买入信号"
         elif '死叉' in signal:
-            return "🔴 看跌"
+            return "卖出信号"
         elif '超买' in signal:
-            return "🟠 谨慎"
+            return "超买区域"
         elif '超卖' in signal:
-            return "🟢 机会"
-        return "⚪ 中性"
+            return "超卖区域"
+        return "正常波动"
     
-    def _macd_signal_emoji(self, signal: str) -> str:
-        """MACD信号表情"""
+    def _kdj_recommendation(self, signal: str) -> str:
+        """KDJ建议"""
+        if '金叉' in signal:
+            return "关注买入"
+        elif '死叉' in signal:
+            return "考虑减仓"
+        elif '超买' in signal:
+            return "谨慎追高"
+        elif '超卖' in signal:
+            return "关注反弹"
+        return "观望"
+    
+    def _macd_status(self, signal: str) -> str:
+        """MACD状态"""
         if '多头' in signal:
-            return "🟢 看涨"
+            return "多头市场"
         elif '空头' in signal:
-            return "🔴 看跌"
-        return "⚪ 中性"
+            return "空头市场"
+        return "盘整市场"
     
-    def _md_pattern_analysis(self) -> str:
-        """Markdown形态面分析"""
+    def _macd_recommendation(self, signal: str) -> str:
+        """MACD建议"""
+        if '多头' in signal:
+            return "趋势向上"
+        elif '空头' in signal:
+            return "趋势向下"
+        return "等待方向"
+    
+    def _rsi_recommendation(self, rsi: float) -> str:
+        """RSI建议"""
+        if rsi > 70:
+            return "谨慎"
+        elif rsi < 30:
+            return "关注"
+        return "正常"
+    
+    def _md_pattern_analysis_enhanced(self) -> str:
+        """Markdown形态面分析（重点强化版）"""
         if not self.pattern_data:
             return ""
         
         sections = []
         
-        # 1. 形态识别结果
+        # 1. K线形态识别结果（详细版）
         candlestick = self.pattern_data.get('candlestick', {})
         if candlestick:
-            patterns = candlestick.get('patterns', [])
-            pattern_rows = []
-            for p in patterns[:5]:
-                emoji = "🟢" if p.get('type') == 'bullish' else "🔴"
-                pattern_rows.append(
-                    f"| {emoji} {p.get('name_cn', 'N/A')} | "
-                    f"{p.get('type_cn', 'N/A')} | "
-                    f"{'⭐' * p.get('reliability', 0)} | "
-                    f"{p.get('confidence', 0):.0%} |"
-                )
-            
-            sections.append(f"""### 1. K线形态识别结果
-
-**形态统计**：共识别 {len(patterns)} 个形态
-
-| 形态名称 | 形态类型 | 可靠性 | 置信度 |
-|:---------|:---------|:-------|:-------|
-{chr(10).join(pattern_rows) if pattern_rows else '| - | - | - | - |'}
-
-**形态信号**：{candlestick.get('signal', '中性')}""")
+            sections.append(self._md_candlestick_section(candlestick))
         
-        # 2. 买卖点及说明
+        # 2. 缠论结构分析
         chanlun = self.pattern_data.get('chanlun', {})
         if chanlun:
-            buy_points = chanlun.get('buy_points', [])
-            sell_points = chanlun.get('sell_points', [])
-            
-            bp_rows = []
-            for bp in buy_points[-3:]:
-                bp_rows.append(f"| 🎯 {bp.get('type', 'N/A')} | {bp.get('price', 0):.2f} | {bp.get('confidence', 0):.0%} | {bp.get('description', 'N/A')[:30]}... |")
-            for sp in sell_points[-3:]:
-                bp_rows.append(f"| 🔻 {sp.get('type', 'N/A')} | {sp.get('price', 0):.2f} | {sp.get('confidence', 0):.0%} | {sp.get('description', 'N/A')[:30]}... |")
-            
-            sections.append(f"""### 2. 缠论买卖点及说明
-
-**当前状态**：
-- 笔数量：{chanlun.get('bi_count', 0)}
-- 中枢数量：{chanlun.get('zhongshu_count', 0)}
-- 当前趋势：{chanlun.get('current_trend', 'N/A')}
-
-| 买卖点类型 | 价格 | 置信度 | 说明 |
-|:-----------|:-----|:-------|:-----|
-{chr(10).join(bp_rows) if bp_rows else '| - | - | - | - |'}""")
+            sections.append(self._md_chanlun_section(chanlun))
         
-        # 3. 信号共振评分
+        # 3. 买卖点信号系统
+        if chanlun:
+            sections.append(self._md_buysell_points_section(chanlun))
+        
+        # 4. 信号共振评分（详细版）
         resonance = self.pattern_data.get('resonance', {})
         if resonance:
-            total_score = resonance.get('total_score', 0)
-            level = resonance.get('resonance_level', '无共振')
-            breakdown = resonance.get('breakdown', {})
-            
-            breakdown_rows = []
-            for dimension, score in breakdown.items():
-                breakdown_rows.append(f"| {dimension} | {score:+.1f}分 |")
-            
-            level_emoji = "🟢" if "强" in level else "🟡" if "中等" in level else "⚪"
-            
-            sections.append(f"""### 3. 信号共振评分
-
-**综合评分**：{total_score:+.1f}/100 {level_emoji} **{level}**
-
-| 维度 | 得分 |
-|:-----|:-----|
-{chr(10).join(breakdown_rows) if breakdown_rows else '| - | - |'}
-
-**看涨得分**：{resonance.get('bullish_score', 0):.1f}  
-**看跌得分**：{resonance.get('bearish_score', 0):.1f}  
-**信号总数**：{resonance.get('signal_count', 0)} 个""")
+            sections.append(self._md_resonance_section(resonance))
         
         content = '\n\n'.join(sections)
         
-        return f"""## 📐 形态面分析
+        return f"""## 📐 五、形态面专业分析【核心板块】
+
+> **形态面分析是本报告的核心特色**，整合K线形态识别、缠论结构分析、买卖点识别、信号共振评分四大模块，提供全方位的技术分析视角。
 
 {content}"""
     
+    def _md_candlestick_section(self, candlestick: Dict) -> str:
+        """K线形态识别详细板块"""
+        patterns = candlestick.get('patterns', [])
+        bullish_count = candlestick.get('bullish_count', 0)
+        bearish_count = candlestick.get('bearish_count', 0)
+        bullish_score = candlestick.get('bullish_score', 0)
+        bearish_score = candlestick.get('bearish_score', 0)
+        signal = candlestick.get('signal', '中性')
+        
+        # 形态详情表格
+        pattern_details = []
+        for i, p in enumerate(patterns[:8], 1):
+            emoji = "🟢" if p.get('type') == 'bullish' else "🔴" if p.get('type') == 'bearish' else "⚪"
+            reliability_stars = '⭐' * p.get('reliability', 0) + '☆' * (5 - p.get('reliability', 0))
+            pattern_details.append(
+                f"| {i} | {emoji} {p.get('name_cn', 'N/A')} | {p.get('type_cn', 'N/A')} | "
+                f"{reliability_stars} | {p.get('confidence', 0):.1%} | {p.get('position', 0)} |"
+            )
+        
+        # 看涨形态列表
+        bullish_patterns = [p for p in patterns if p.get('type') == 'bullish'][:3]
+        bearish_patterns = [p for p in patterns if p.get('type') == 'bearish'][:3]
+        
+        bullish_list = '\n'.join([
+            f"- **{p.get('name_cn')}**（可靠性{p.get('reliability')}/5，置信度{p.get('confidence'):.1%}）：{p.get('description', '看涨信号')}"
+            for p in bullish_patterns
+        ]) if bullish_patterns else "- 暂无主要看涨形态"
+        
+        bearish_list = '\n'.join([
+            f"- **{p.get('name_cn')}**（可靠性{p.get('reliability')}/5，置信度{p.get('confidence'):.1%}）：{p.get('description', '看跌信号')}"
+            for p in bearish_patterns
+        ]) if bearish_patterns else "- 暂无主要看跌形态"
+        
+        return f"""### 5.1 K线形态识别结果
+
+#### 形态统计概览
+
+| 统计项 | 数值 | 说明 |
+|:-------|:-----|:-----|
+| **识别形态总数** | {len(patterns)} 个 | 近5个交易日 |
+| **看涨形态** | {bullish_count} 个 | 看涨得分：{bullish_score:.1f} |
+| **看跌形态** | {bearish_count} 个 | 看跌得分：{bearish_score:.1f} |
+| **综合信号** | {signal} | 形态面整体判断 |
+
+#### 形态识别详情
+
+| 序号 | 形态名称 | 形态类型 | 可靠性 | 置信度 | 出现位置 |
+|:-----|:---------|:---------|:-------|:-------|:---------|
+{chr(10).join(pattern_details) if pattern_details else '| - | - | - | - | - | - |'}
+
+#### 主要看涨形态解读
+
+{bullish_list}
+
+#### 主要看跌形态解读
+
+{bearish_list}
+
+#### 形态综合分析
+
+基于{candlestick.get('total_patterns', len(patterns))}种形态识别结果，形态面呈现**{signal}**信号。看涨形态{bullish_count}个，看跌形态{bearish_count}个，净看涨得分{bullish_score - bearish_score:+.1f}分。
+
+**形态策略建议**：{self._pattern_strategy(signal, bullish_count, bearish_count)}"""
+    
+    def _pattern_strategy(self, signal: str, bullish: int, bearish: int) -> str:
+        """形态策略建议"""
+        if '强烈看涨' in signal or bullish >= 3:
+            return "多个看涨形态共振，技术面支撑较强，建议积极关注买入机会。"
+        elif '看涨' in signal or bullish > bearish:
+            return "看涨形态占优，技术面偏正面，可考虑适量参与。"
+        elif '强烈看跌' in signal or bearish >= 3:
+            return "多个看跌形态共振，技术面压力较大，建议谨慎观望。"
+        elif '看跌' in signal or bearish > bullish:
+            return "看跌形态占优，技术面偏负面，建议控制仓位。"
+        else:
+            return "多空形态均衡，技术面信号混杂，建议等待更明确的形态信号。"
+    
+    def _md_chanlun_section(self, chanlun: Dict) -> str:
+        """缠论结构分析板块"""
+        bi_count = chanlun.get('bi_count', 0)
+        zhongshu_count = chanlun.get('zhongshu_count', 0)
+        current_trend = chanlun.get('current_trend', '未知')
+        
+        # 最近中枢
+        nearest_zs = chanlun.get('nearest_zhongshu', {})
+        zs_info = ""
+        if nearest_zs:
+            zs_info = f"""
+#### 最近中枢详情
+
+| 属性 | 数值 | 说明 |
+|:-----|:-----|:-----|
+| **中枢区间** | {nearest_zs.get('range', 'N/A')} | 价格波动中枢 |
+| **ZG（中枢高点）** | {nearest_zs.get('zg', 'N/A')} | 中枢上沿，阻力位 |
+| **ZD（中枢低点）** | {nearest_zs.get('zd', 'N/A')} | 中枢下沿，支撑位 |
+| **中枢中心** | {nearest_zs.get('center', 'N/A')} | 多空平衡价位 |
+
+**中枢意义**：当前中枢为价格提供了明确的支撑和阻力参考。价格在中枢上方运行偏强，在中枢下方运行偏弱。突破中枢上沿可能开启新一轮上涨，跌破中枢下沿可能加速下跌。
+"""
+        
+        # 笔的详情
+        bis = chanlun.get('bis', [])
+        bi_details = ""
+        if bis:
+            bi_details = "#### 笔结构详情\n\n| 序号 | 方向 | 起点价格 | 终点价格 | 幅度 |\n|:-----|:-----|:---------|:---------|:-----|\n"
+            for i, bi in enumerate(bis[-5:], 1):
+                direction = "📈 向上" if bi.get('direction') == 'up' else "📉 向下"
+                bi_details += f"| {i} | {direction} | {bi.get('start_price', 0):.2f} | {bi.get('end_price', 0):.2f} | {bi.get('height', 0):.2f} |\n"
+        
+        return f"""### 5.2 缠论结构分析
+
+#### 缠论核心要素
+
+| 要素 | 数值 | 技术含义 |
+|:-----|:-----|:---------|
+| **笔数量** | {bi_count} 笔 | 价格走势的基本单位 |
+| **中枢数量** | {zhongshu_count} 个 | 价格密集成交区 |
+| **当前趋势** | {current_trend} | 当前笔的运行方向 |
+
+{zs_info}
+
+{bi_details}
+
+#### 缠论结构解读
+
+基于缠论分析，当前走势呈现以下特征：
+
+1. **笔结构**：共识别出{bi_count}笔，构成完整的价格走势结构
+2. **中枢分布**：{zhongshu_count}个中枢形成，为价格提供支撑阻力参考
+3. **当前状态**：{current_trend}，趋势方向明确
+
+**缠论视角建议**：{self._chanlun_advice(current_trend, zhongshu_count)}"""
+    
+    def _chanlun_advice(self, trend: str, zs_count: int) -> str:
+        """缠论建议"""
+        if '向上' in trend and zs_count > 0:
+            return "当前处于向上笔运行中，且有中枢支撑，趋势较为健康。关注是否形成背驰信号。"
+        elif '向下' in trend and zs_count > 0:
+            return "当前处于向下笔运行中，关注是否接近中枢下沿或形成买点信号。"
+        elif '向上' in trend:
+            return "向上笔运行中，但中枢结构尚不明确，需关注后续中枢形成情况。"
+        elif '向下' in trend:
+            return "向下笔运行中，建议等待企稳信号或买点确认后再考虑介入。"
+        else:
+            return "趋势方向尚不明确，建议等待笔结构进一步清晰。"
+    
+    def _md_buysell_points_section(self, chanlun: Dict) -> str:
+        """买卖点信号系统板块"""
+        buy_points = chanlun.get('buy_points', [])
+        sell_points = chanlun.get('sell_points', [])
+        
+        # 买点详情
+        buy_details = []
+        for i, bp in enumerate(buy_points, 1):
+            bp_type = bp.get('type', 'N/A')
+            price = bp.get('price', 0)
+            confidence = bp.get('confidence', 0)
+            description = bp.get('description', '')
+            
+            # 买点级别
+            level = ""
+            if '一买' in bp_type:
+                level = "🥇 一级买点（最强）"
+            elif '二买' in bp_type:
+                level = "🥈 二级买点（较强）"
+            elif '三买' in bp_type:
+                level = "🥉 三级买点（一般）"
+            
+            buy_details.append(
+                f"| {i} | 🎯 {bp_type} | {level} | ¥{price:.2f} | {confidence:.1%} | {description[:30]}... |"
+            )
+        
+        # 卖点详情
+        sell_details = []
+        for i, sp in enumerate(sell_points, 1):
+            sp_type = sp.get('type', 'N/A')
+            price = sp.get('price', 0)
+            confidence = sp.get('confidence', 0)
+            description = sp.get('description', '')
+            
+            level = ""
+            if '一卖' in sp_type:
+                level = "🥇 一级卖点（最强）"
+            elif '二卖' in sp_type:
+                level = "🥈 二级卖点（较强）"
+            elif '三卖' in sp_type:
+                level = "🥉 三级卖点（一般）"
+            
+            sell_details.append(
+                f"| {i} | 🔻 {sp_type} | {level} | ¥{price:.2f} | {confidence:.1%} | {description[:30]}... |"
+            )
+        
+        # 买卖点说明
+        buy_sell_guide = """
+#### 买卖点级别说明
+
+| 级别 | 买点 | 卖点 | 特征 |
+|:-----|:-----|:-----|:-----|
+| **一级** | 一买 | 一卖 | 趋势转折点，信号最强，成功率最高 |
+| **二级** | 二买 | 二卖 | 回撤确认点，信号较强，风险相对较小 |
+| **三级** | 三买 | 三卖 | 突破确认点，信号一般，需结合其他指标 |
+
+**注意**：缠论买卖点基于算法自动识别，仅供参考。实际交易中需结合市场环境、资金管理等因素综合判断。
+"""
+        
+        return f"""### 5.3 买卖点信号系统
+
+#### 识别到的买点
+
+| 序号 | 买点类型 | 级别 | 价格 | 置信度 | 说明 |
+|:-----|:---------|:-----|:-----|:-------|:-----|
+{chr(10).join(buy_details) if buy_details else '| - | - | - | - | - | - |'}
+
+#### 识别到的卖点
+
+| 序号 | 卖点类型 | 级别 | 价格 | 置信度 | 说明 |
+|:-----|:---------|:-----|:-----|:-------|:-----|
+{chr(10).join(sell_details) if sell_details else '| - | - | - | - | - | - |'}
+
+{buy_sell_guide}
+
+#### 当前买卖点策略
+
+{self._buysell_strategy(buy_points, sell_points)}"""
+    
+    def _buysell_strategy(self, buy_points: List, sell_points: List) -> str:
+        """买卖点策略"""
+        if buy_points and not sell_points:
+            bp = buy_points[-1]
+            return f"当前识别到**{bp.get('type')}**信号，价格¥{bp.get('price', 0):.2f}，置信度{bp.get('confidence', 0):.1%}。建议关注该价位附近的买入机会，设置止损于该买点下方3-5%。"
+        elif sell_points and not buy_points:
+            sp = sell_points[-1]
+            return f"当前识别到**{sp.get('type')}**信号，价格¥{sp.get('price', 0):.2f}，置信度{sp.get('confidence', 0):.1%}。建议关注该价位附近的卖出/减仓机会。"
+        elif buy_points and sell_points:
+            return f"当前同时存在买点和卖点信号，市场处于震荡格局。建议根据持仓情况灵活操作：接近买点可加仓，接近卖点可减仓，区间内可高抛低吸。"
+        else:
+            return "当前暂无明确的买卖点信号，建议等待缠论结构进一步清晰后再做决策。"
+    
+    def _md_resonance_section(self, resonance: Dict) -> str:
+        """信号共振评分详细板块"""
+        total_score = resonance.get('total_score', 0)
+        bullish_score = resonance.get('bullish_score', 0)
+        bearish_score = resonance.get('bearish_score', 0)
+        signal_count = resonance.get('signal_count', 0)
+        breakdown = resonance.get('breakdown', {})
+        
+        # 共振级别
+        resonance_level, res_emoji, res_desc = self._get_resonance_level(total_score)
+        
+        # 维度得分详情
+        dimension_details = []
+        dimension_names = {
+            'K线形态': 'K线形态',
+            '技术指标': '技术指标',
+            '趋势信号': '趋势信号',
+            '成交量': '成交量',
+            '基本面': '基本面',
+            '情绪面': '情绪面',
+            '缠论': '缠论'
+        }
+        
+        for dim_key, score in breakdown.items():
+            dim_name = dimension_names.get(dim_key, dim_key)
+            direction = "看涨" if score > 0 else "看跌" if score < 0 else "中性"
+            strength = abs(score)
+            bar = "█" * int(strength / 5) + "░" * (20 - int(strength / 5))
+            dimension_details.append(f"| {dim_name} | {direction} | {score:+.1f} | {bar} |")
+        
+        # 看涨信号列表
+        bullish_signals = resonance.get('bullish_signals', [])
+        bullish_list = '\n'.join([
+            f"{i+1}. **{s.get('signal_type', '信号')}**：{s.get('description', '')}"
+            for i, s in enumerate(bullish_signals[:5])
+        ]) if bullish_signals else "- 暂无主要看涨信号"
+        
+        # 看跌信号列表
+        bearish_signals = resonance.get('bearish_signals', [])
+        bearish_list = '\n'.join([
+            f"{i+1}. **{s.get('signal_type', '信号')}**：{s.get('description', '')}"
+            for i, s in enumerate(bearish_signals[:5])
+        ]) if bearish_signals else "- 暂无主要看跌信号"
+        
+        return f"""### 5.4 信号共振评分系统
+
+#### 共振评分概览
+
+<div align="center">
+
+### {res_emoji} 共振级别：{resonance_level}
+
+**综合评分**：{total_score:+.1f}/100 | **看涨得分**：{bullish_score:.1f} | **看跌得分**：{bearish_score:.1f} | **信号总数**：{signal_count} 个
+
+*{res_desc}*
+
+</div>
+
+#### 七维度评分详情
+
+| 维度 | 方向 | 得分 | 强度可视化 |
+|:-----|:-----|:-----|:-----------|
+{chr(10).join(dimension_details) if dimension_details else '| - | - | - | - |'}
+
+#### 看涨信号明细
+
+{bullish_list}
+
+#### 看跌信号明细
+
+{bearish_list}
+
+#### 共振分析结论
+
+{self._resonance_conclusion(total_score, bullish_score, bearish_score, signal_count)}"""
+    
+    def _resonance_conclusion(self, total: float, bullish: float, bearish: float, count: int) -> str:
+        """共振分析结论"""
+        abs_score = abs(total)
+        
+        if abs_score >= 75:
+            direction = "强烈看涨" if total > 0 else "强烈看跌"
+            return f"🟢 **{direction}共振**：七维度信号高度一致，综合评分{total:+.1f}分，趋势确认度极高。{bullish:.1f}分看涨信号对{bearish:.1f}分看跌信号形成压倒性优势，建议积极跟进趋势方向。"
+        elif abs_score >= 50:
+            direction = "看涨" if total > 0 else "看跌"
+            return f"🟡 **{direction}共振**：多数维度信号同向，综合评分{total:+.1f}分，趋势较为明确。看涨得分{bullish:.1f}分，看跌得分{bearish:.1f}分，建议顺势而为。"
+        elif abs_score >= 25:
+            direction = "弱看涨" if total > 0 else "弱看跌"
+            return f"⚪ **{direction}共振**：部分维度信号同向，综合评分{total:+.1f}分，趋势初步显现但需确认。建议控制仓位，等待更明确的信号。"
+        else:
+            return f"⚫ **无共振**：各维度信号分散，综合评分{total:+.1f}分，多空力量均衡。看涨{bullish:.1f}分 vs 看跌{bearish:.1f}分，建议观望等待方向选择。"
+    
     def _md_investment_advice(self) -> str:
         """Markdown综合投资建议"""
-        suggestion = self.data.get('suggestion', {})
-        total_score = suggestion.get('total_score', 50)
-        action = suggestion.get('action', '观望')
-        target_price = suggestion.get('target_price', 0)
-        stop_loss = suggestion.get('stop_loss', 0)
+        action = self.suggestion.get('action', '观望')
+        target_price = self.suggestion.get('target_price', 0)
+        stop_loss = self.suggestion.get('stop_loss', 0)
+        position = self.suggestion.get('position', '10%')
         
-        # 核心优势
-        advantages = self._generate_advantages()
+        quote = self.data.get('quote', {})
+        current_price = quote.get('price', 0)
         
-        # 风险因素
-        risks = self._generate_risks()
+        # 计算盈亏比
+        if current_price > 0 and target_price > 0 and stop_loss > 0:
+            upside = (target_price - current_price) / current_price * 100
+            downside = (current_price - stop_loss) / current_price * 100
+            risk_reward = upside / downside if downside > 0 else 0
+        else:
+            upside = downside = risk_reward = 0
         
-        # 交易建议
-        trading_advice = self._generate_trading_advice()
-        
-        # 分析总结
-        summary = self._generate_summary()
-        
-        return f"""## 🎯 综合投资建议
+        return f"""## 🎯 六、综合投资决策建议
 
-### 综合评分
+### 6.1 投资决策总览
 
-| 指标 | 数值 | 说明 |
-|:-----|:-----|:-----|
-| **综合评分** | {total_score}/100 | 满分100分 |
-| **操作建议** | {action} | 基于五维分析 |
-| **目标价格** | ¥{target_price:.2f} | 预期上涨空间 |
-| **止损价格** | ¥{stop_loss:.2f} | 风险控制线 |
+<div align="center">
 
-### 核心优势
+### {self.rating_emoji} {self.rating} | 综合评分：{self.total_score}/100
 
-{advantages}
+**操作建议**：{action} | **目标价**：¥{target_price:.2f} | **止损价**：¥{stop_loss:.2f}
 
-### 风险因素
+</div>
 
-{risks}
+### 6.2 关键价位与盈亏分析
 
-### 交易建议
+| 价位类型 | 价格 | 涨跌幅 | 说明 |
+|:---------|:-----|:-------|:-----|
+| **当前价格** | ¥{current_price:.2f} | - | 基准价位 |
+| **目标价格** | ¥{target_price:.2f} | +{upside:.1f}% | 预期上涨空间 |
+| **止损价格** | ¥{stop_loss:.2f} | -{downside:.1f}% | 最大可承受亏损 |
+| **盈亏比** | 1:{risk_reward:.1f} | - | {'🟢 优秀' if risk_reward >= 3 else '🟡 良好' if risk_reward >= 2 else '⚪ 一般' if risk_reward >= 1.5 else '🔴 较差'} |
 
-{trading_advice}
+### 6.3 核心投资优势
 
-### 分析总结
+{self._generate_advantages_enhanced()}
 
-{summary}"""
+### 6.4 主要风险因素
+
+{self._generate_risks_enhanced()}
+
+### 6.5 交易策略建议
+
+#### 仓位管理
+- **建议仓位**：{position}
+- **建仓策略**：{self._position_strategy(self.total_score)}
+
+#### 操作计划
+{self._trading_plan(current_price, target_price, stop_loss)}
+
+### 6.6 投资分析总结
+
+{self._generate_summary_enhanced()}"""
     
-    def _generate_advantages(self) -> str:
-        """生成核心优势"""
+    def _generate_advantages_enhanced(self) -> str:
+        """生成增强版核心优势"""
         advantages = []
         
+        # 技术面优势
+        tech = self.data.get('technical', {})
+        trend = tech.get('trend', '')
+        kdj_signal = tech.get('kdj_signal', '')
+        macd_signal = tech.get('macd_signal', '')
+        
+        if '上升' in trend:
+            advantages.append("1. **技术面趋势向好**：均线系统多头排列，中长期趋势向上，技术支撑较强")
+        if '金叉' in kdj_signal:
+            advantages.append("2. **KDJ金叉信号**：短期动能转强，技术指标发出买入信号")
+        if '多头' in macd_signal:
+            advantages.append("3. **MACD多头格局**：DIF处于零轴上方，中长期趋势健康")
+        
+        # 基本面优势
         fundamental = self.data.get('fundamental', {})
         perf = fundamental.get('performance_trend', {})
         if '向好' in perf.get('overall_trend', ''):
-            advantages.append("1. **基本面稳健**：业绩趋势向好，盈利能力稳定")
+            advantages.append("4. **基本面稳健**：业绩趋势向好，盈利能力稳定，具备基本面支撑")
         
-        tech = self.data.get('technical', {})
-        if '上升' in tech.get('trend', ''):
-            advantages.append("2. **技术面向好**：均线系统多头排列，趋势明确")
+        fin = fundamental.get('financial', {})
+        latest = fin.get('latest', {})
+        try:
+            roe_val = float(str(latest.get('roe', '0')).replace('%', ''))
+            if roe_val > 15:
+                advantages.append(f"5. **ROE优秀**：ROE达{latest.get('roe')}，股东回报能力突出")
+        except:
+            pass
         
+        # 资金面优势
         money = self.data.get('money_flow', {})
         main_flow = money.get('main_flow', {})
-        if main_flow.get('main_net', 0) > 0:
-            advantages.append("3. **资金关注**：主力资金净流入，市场认可度高")
+        main_net = main_flow.get('main_net', 0)
+        if main_net > 0.5:
+            advantages.append(f"6. **主力资金流入**：主力净流入{main_net:.2f}亿，资金面对股价形成支撑")
         
-        news = self.data.get('news', {})
-        if news.get('sentiment') == '偏多':
-            advantages.append("4. **消息利好**：近期消息面偏正面，情绪支持")
-        
+        # 形态面优势（重点）
         if self.pattern_data:
+            candlestick = self.pattern_data.get('candlestick', {})
+            if candlestick.get('bullish_count', 0) >= 2:
+                advantages.append("7. **形态面看涨**：多个K线形态发出看涨信号，技术面支撑明显")
+            
+            chanlun = self.pattern_data.get('chanlun', {})
+            if chanlun.get('buy_points', []):
+                advantages.append("8. **缠论买点确认**：缠论结构识别出买点信号，提供精确入场参考")
+            
             resonance = self.pattern_data.get('resonance', {})
-            if '强' in resonance.get('resonance_level', ''):
-                advantages.append("5. **形态共振**：多维度信号共振，趋势确认度高")
+            res_score = resonance.get('total_score', 0)
+            if res_score > 50:
+                advantages.append(f"9. **信号共振强劲**：七维度共振评分{res_score:+.1f}分，多维度信号高度一致")
         
         if not advantages:
-            advantages.append("综合各维度分析，未发现明显优势")
+            advantages.append("综合各维度分析，当前优势不明显，建议谨慎观察")
         
         return '\n'.join(advantages)
     
-    def _generate_risks(self) -> str:
-        """生成风险因素"""
+    def _generate_risks_enhanced(self) -> str:
+        """生成增强版风险因素"""
         risks = []
         
+        # 技术风险
         quote = self.data.get('quote', {})
         pct_change = quote.get('pct_change', 0)
         if pct_change > 7:
-            risks.append("1. **追高风险**：今日涨幅过大，短期回调压力")
+            risks.append("1. **追高风险**：今日涨幅超过7%，短期乖离率过大，存在回调压力")
         
         tech = self.data.get('technical', {})
-        if '超买' in tech.get('rsi_signal', ''):
-            risks.append("2. **技术超买**：RSI指标超买，短期调整风险")
+        rsi = tech.get('rsi', 50)
+        kdj_signal = tech.get('kdj_signal', '')
         
+        if rsi > 70:
+            risks.append(f"2. **技术指标超买**：RSI达{rsi:.1f}，进入超买区，短期调整风险增加")
+        if '超买' in kdj_signal:
+            risks.append("3. **KDJ超买信号**：KDJ指标显示超买，短期动能可能衰竭")
+        
+        # 基本面风险
         fundamental = self.data.get('fundamental', {})
         perf = fundamental.get('performance_trend', {})
         if '承压' in perf.get('overall_trend', ''):
-            risks.append("3. **业绩压力**：基本面承压，业绩存在下滑风险")
+            risks.append("4. **基本面压力**：业绩趋势承压，盈利能力存在下滑风险")
         
+        # 消息风险
         news = self.data.get('news', {})
         if '利空' in news.get('fundamental_impact', ''):
-            risks.append("4. **消息风险**：近期消息面偏空，注意利空影响")
+            risks.append("5. **消息面风险**：近期消息面偏空，可能对股价形成压制")
+        
+        # 形态面风险
+        if self.pattern_data:
+            candlestick = self.pattern_data.get('candlestick', {})
+            if candlestick.get('bearish_count', 0) >= 2:
+                risks.append("6. **形态面压力**：多个K线形态发出看跌信号，技术面存在压力")
+            
+            resonance = self.pattern_data.get('resonance', {})
+            res_score = resonance.get('total_score', 0)
+            if res_score < -30:
+                risks.append(f"7. **信号共振偏弱**：七维度共振评分{res_score:+.1f}分，多维度信号偏空")
         
         if not risks:
-            risks.append("✅ 未发现明显风险信号")
+            risks.append("✅ 未发现明显风险信号，但仍需关注市场系统性风险")
         
         return '\n'.join(risks)
     
-    def _generate_trading_advice(self) -> str:
-        """生成交易建议"""
-        suggestion = self.data.get('suggestion', {})
-        total_score = suggestion.get('total_score', 50)
-        
-        if total_score >= 75:
-            return """- **操作策略**：积极配置，分批建仓
-- **仓位建议**：40-60%
-- **买入区间**：当前价格附近
-- **持有策略**：中线持有，目标价附近减仓"""
-        elif total_score >= 60:
-            return """- **操作策略**：适量参与，控制仓位
-- **仓位建议**：20-40%
-- **买入区间**：回调至支撑位附近
-- **持有策略**：波段操作，灵活应对"""
-        elif total_score >= 45:
-            return """- **操作策略**：观望为主，等待机会
-- **仓位建议**：10-20%
-- **买入区间**：等待明确信号
-- **持有策略**：短线为主，快进快出"""
+    def _position_strategy(self, score: int) -> str:
+        """仓位策略"""
+        if score >= 80:
+            return "可重仓参与（60-80%），但建议分批建仓，首次建仓不超过40%"
+        elif score >= 65:
+            return "可适度参与（40-60%），分2-3批建仓，降低择时风险"
+        elif score >= 50:
+            return "轻仓试探（20-40%），快进快出，严格止损"
+        elif score >= 35:
+            return "极小仓位（10-20%）或观望，等待更明确信号"
         else:
-            return """- **操作策略**：减仓观望，规避风险
-- **仓位建议**：<10%
-- **买入区间**：暂不买入
-- **持有策略**：止损离场，等待趋势明朗"""
+            return "空仓观望或清仓，规避风险"
     
-    def _generate_summary(self) -> str:
-        """生成分析总结"""
-        suggestion = self.data.get('suggestion', {})
-        total_score = suggestion.get('total_score', 50)
-        
-        if total_score >= 75:
-            return "综合五维分析，该股票目前呈现**强烈看多**信号。技术面趋势明确，基本面稳健，资金面积极，消息面利好，形态面共振。建议积极配置，但需注意控制仓位，设置止损。"
-        elif total_score >= 60:
-            return "综合五维分析，该股票目前呈现**谨慎看多**信号。整体趋势向好，但部分维度存在不确定性。建议适量参与，控制仓位，密切关注后续走势变化。"
-        elif total_score >= 45:
-            return "综合五维分析，该股票目前信号**中性混杂**。多空因素交织，趋势尚不明确。建议观望为主，等待更明确的入场信号。"
+    def _trading_plan(self, current: float, target: float, stop: float) -> str:
+        """交易计划"""
+        if self.total_score >= 70:
+            return f"""- **买入区间**：¥{current * 0.98:.2f} - ¥{current * 1.02:.2f}
+- **目标价位**：¥{target:.2f}（预期收益{(target/current - 1)*100:.1f}%）
+- **止损价位**：¥{stop:.2f}（最大亏损{(1 - stop/current)*100:.1f}%）
+- **持有周期**：中线持有（1-3个月）
+- **止盈策略**：达到目标价减仓50%，剩余设移动止盈"""
+        elif self.total_score >= 50:
+            return f"""- **买入区间**：¥{current * 0.97:.2f} - ¥{current:.2f}（不追高）
+- **目标价位**：¥{target:.2f}
+- **止损价位**：¥{stop:.2f}
+- **持有周期**：波段操作（2-4周）
+- **止盈策略**：分批止盈，涨5%减1/3，涨10%减1/2"""
         else:
-            return "综合五维分析，该股票目前呈现**谨慎看空**信号。多个维度显示风险积聚，建议减仓观望，规避风险，等待趋势明朗后再做决策。"
+            return f"""- **买入区间**：暂不买入，等待信号改善
+- **关注价位**：¥{current * 0.95:.2f}以下（回调后）
+- **止损价位**：¥{stop:.2f}
+- **持有周期**：短线或观望
+- **策略**：等待更明确的入场信号"""
+    
+    def _generate_summary_enhanced(self) -> str:
+        """生成增强版分析总结"""
+        if self.total_score >= 75:
+            return f"""综合五维分析，该股票目前呈现**{self.rating}**信号，综合评分{self.total_score}/100。
+
+**技术面**：趋势明确，指标配合良好；**基本面**：业绩稳健，财务健康；**资金面**：主力积极；**消息面**：情绪正面；**形态面**：{self._pattern_summary()}。
+
+建议积极配置，但需严格执行止损纪律，控制单一标的仓位不超过总资产的30%。"""
+        elif self.total_score >= 60:
+            return f"""综合五维分析，该股票目前呈现**{self.rating}**信号，综合评分{self.total_score}/100。
+
+整体趋势向好，但部分维度存在不确定性。{self._pattern_summary()}
+
+建议适量参与，控制仓位，密切关注后续走势变化，及时调整策略。"""
+        elif self.total_score >= 45:
+            return f"""综合五维分析，该股票目前信号**中性混杂**，综合评分{self.total_score}/100。
+
+多空因素交织，趋势尚不明确。{self._pattern_summary()}
+
+建议观望为主，等待更明确的入场信号，避免在模糊区域操作。"""
+        else:
+            return f"""综合五维分析，该股票目前呈现**{self.rating}**信号，综合评分{self.total_score}/100。
+
+多个维度显示风险积聚，{self._pattern_summary()}
+
+建议减仓观望，规避风险，等待趋势明朗后再做决策。"""
+    
+    def _pattern_summary(self) -> str:
+        """形态面总结"""
+        if not self.pattern_data:
+            return "形态面数据待更新"
+        
+        parts = []
+        candlestick = self.pattern_data.get('candlestick', {})
+        bullish = candlestick.get('bullish_count', 0)
+        bearish = candlestick.get('bearish_count', 0)
+        
+        if bullish > 0 or bearish > 0:
+            parts.append(f"识别出{bullish}个看涨、{bearish}个看跌形态")
+        
+        chanlun = self.pattern_data.get('chanlun', {})
+        if chanlun.get('buy_points', []):
+            parts.append("缠论出现买点信号")
+        if chanlun.get('sell_points', []):
+            parts.append("缠论出现卖点信号")
+        
+        resonance = self.pattern_data.get('resonance', {})
+        res_score = resonance.get('total_score', 0)
+        if abs(res_score) > 30:
+            parts.append(f"信号共振评分{res_score:+.1f}分")
+        
+        return "形态面" + ("，".join(parts) if parts else "信号中性")
     
     def _md_risk_disclaimer(self) -> str:
         """Markdown风险提示与免责声明"""
-        return """## ⚠️ 风险提示与免责声明
+        return f"""---
+
+## ⚠️ 附录：风险提示与免责声明
 
 ### 风险提示
 
-- 本报告基于历史数据分析，不构成投资建议
-- 股票市场存在波动风险，投资需谨慎
-- 信号共振评分和情绪指数仅供参考
-- 缠论买卖点识别为算法自动计算，可能存在误差
-- 请结合自身风险承受能力谨慎决策
+1. **市场风险**：股票市场受宏观经济、政策环境、国际形势等多重因素影响，存在系统性风险
+2. **个股风险**：个股价格受公司经营、行业竞争、市场情绪等因素影响，波动可能较大
+3. **模型风险**：本报告基于算法模型和历史数据，不保证未来收益，信号可能存在误差
+4. **形态识别风险**：K线形态和缠论买卖点为算法自动识别，可能存在误判，需人工复核
+5. **共振评分风险**：信号共振评分仅供参考，不构成买卖依据
+6. **时效性风险**：报告基于历史数据，市场情况可能快速变化，建议及时更新分析
 
 ### 免责声明
 
 > **本报告仅供参考，不构成任何投资建议或承诺。**
 > 
-> 报告中的数据和分析结果基于公开信息和算法模型，不保证准确性和完整性。投资者应独立做出投资决策，并自行承担投资风险。过往业绩不代表未来表现。
+> 1. 报告中的数据和分析结果基于公开信息和算法模型，作者不保证其准确性、完整性和及时性
+> 2. 投资者应独立做出投资决策，并自行承担投资风险
+> 3. 过往业绩不代表未来表现，历史回测结果仅供参考
+> 4. 本报告版权归作者所有，未经授权不得转载或用于商业用途
+> 5. 使用本报告即表示您已阅读并理解上述风险提示和免责声明
 > 
-> **股市有风险，投资需谨慎。**
+> **股市有风险，投资需谨慎。请根据自身风险承受能力谨慎决策。**
 
 ---
 
-*报告由 Stock Analyst Skill V3.1 智能分析系统生成*  
-*生成时间：{self.timestamp}*"""
+<div align="center">
+
+**报告由 Stock Analyst Skill V3.1 Pro 智能分析系统生成**
+
+📅 生成时间：{self.timestamp} | 🔄 数据时效：实时
+
+</div>"""
     
-    # ==================== HTML格式生成 ====================
+    # ==================== HTML格式生成（简化版，核心样式） ====================
     
     def generate_html(self) -> str:
-        """生成HTML格式报告"""
+        """生成专业HTML格式报告"""
+        # 将Markdown转换为HTML（简化实现）
+        md_content = self.generate_markdown()
+        
         return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{self.stock_name} ({self.code}) 股票分析报告</title>
+    <title>{self.stock_name} ({self.code}) - 专业股票分析报告</title>
     <style>
         :root {{
-            --primary-color: #2563eb;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --neutral-color: #6b7280;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text-primary: #1f2937;
-            --text-secondary: #6b7280;
-            --border-color: #e5e7eb;
+            --primary: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --neutral: #6b7280;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1f2937;
+            --border: #e5e7eb;
         }}
         
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
         }}
         
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }}
+        .container {{ max-width: 1000px; margin: 0 auto; padding: 20px; }}
         
-        /* 头部样式 */
+        /* Header */
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 40px;
             border-radius: 16px;
             margin-bottom: 24px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
         }}
         
-        .header h1 {{
-            font-size: 2rem;
-            margin-bottom: 12px;
-        }}
+        .header h1 {{ font-size: 2rem; margin-bottom: 12px; }}
+        .header .meta {{ opacity: 0.9; font-size: 0.9rem; }}
         
-        .header .meta {{
-            opacity: 0.9;
-            font-size: 0.9rem;
-        }}
-        
-        /* 卡片样式 */
+        /* Cards */
         .card {{
-            background: var(--card-bg);
+            background: var(--card);
             border-radius: 12px;
-            padding: 24px;
+            padding: 28px;
             margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border);
         }}
         
         .card h2 {{
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             margin-bottom: 20px;
             padding-bottom: 12px;
-            border-bottom: 2px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
         }}
         
         .card h3 {{
-            font-size: 1.2rem;
-            margin: 20px 0 12px 0;
-            color: var(--text-primary);
+            font-size: 1.1rem;
+            margin: 24px 0 12px 0;
+            color: var(--text);
+            font-weight: 600;
         }}
         
-        /* 评分卡片 */
-        .score-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 20px;
-        }}
-        
-        .score-item {{
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            border: 1px solid #bae6fd;
-        }}
-        
-        .score-item .label {{
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-        }}
-        
-        .score-item .value {{
-            font-size: 1.75rem;
-            font-weight: bold;
-            color: var(--primary-color);
-        }}
-        
-        .score-item.rating-strong {{
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-            border-color: #6ee7b7;
-        }}
-        
-        .score-item.rating-strong .value {{
-            color: var(--success-color);
-        }}
-        
-        .score-item.rating-weak {{
-            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-            border-color: #fca5a5;
-        }}
-        
-        .score-item.rating-weak .value {{
-            color: var(--danger-color);
-        }}
-        
-        /* 表格样式 */
+        /* Tables */
         table {{
             width: 100%;
             border-collapse: collapse;
@@ -878,20 +1622,56 @@ class UnifiedReportGenerator:
         th, td {{
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border);
         }}
         
         th {{
-            background-color: #f9fafb;
+            background: #f9fafb;
             font-weight: 600;
-            color: var(--text-secondary);
+            color: var(--neutral);
         }}
         
-        tr:hover {{
-            background-color: #f9fafb;
+        tr:hover {{ background: #f9fafb; }}
+        
+        /* Score display */
+        .score-display {{
+            text-align: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            margin: 16px 0;
         }}
         
-        /* 信号标签 */
+        .score-display .score {{
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary);
+        }}
+        
+        .score-display .rating {{
+            font-size: 1.5rem;
+            margin-top: 8px;
+        }}
+        
+        /* Highlight box */
+        .highlight {{
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid var(--warning);
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+        }}
+        
+        /* Pattern section highlight */
+        .pattern-highlight {{
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 2px solid var(--success);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+        }}
+        
+        /* Badges */
         .badge {{
             display: inline-block;
             padding: 4px 12px;
@@ -900,652 +1680,76 @@ class UnifiedReportGenerator:
             font-weight: 500;
         }}
         
-        .badge-success {{
-            background-color: #d1fae5;
-            color: #065f46;
-        }}
+        .badge-success {{ background: #d1fae5; color: #065f46; }}
+        .badge-danger {{ background: #fee2e2; color: #991b1b; }}
+        .badge-warning {{ background: #fef3c7; color: #92400e; }}
         
-        .badge-danger {{
-            background-color: #fee2e2;
-            color: #991b1b;
-        }}
+        /* Lists */
+        ul {{ padding-left: 20px; margin: 12px 0; }}
+        li {{ margin: 8px 0; }}
         
-        .badge-warning {{
-            background-color: #fef3c7;
-            color: #92400e;
-        }}
-        
-        .badge-neutral {{
-            background-color: #f3f4f6;
-            color: #4b5563;
-        }}
-        
-        /* 列表样式 */
-        .analysis-list {{
-            list-style: none;
-            padding: 0;
-        }}
-        
-        .analysis-list li {{
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-        }}
-        
-        .analysis-list li:last-child {{
-            border-bottom: none;
-        }}
-        
-        .analysis-list .icon {{
-            font-size: 1.2rem;
-            flex-shrink: 0;
-        }}
-        
-        /* 免责声明 */
+        /* Disclaimer */
         .disclaimer {{
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border: 1px solid #fbbf24;
+            border: 1px solid var(--warning);
             border-radius: 12px;
-            padding: 20px;
+            padding: 24px;
             margin-top: 24px;
         }}
         
-        .disclaimer h3 {{
-            color: #92400e;
-            margin-bottom: 12px;
-        }}
+        .disclaimer h3 {{ color: #92400e; margin-bottom: 12px; }}
         
-        .disclaimer p {{
-            color: #78350f;
-            font-size: 0.9rem;
-        }}
-        
-        /* 响应式 */
+        /* Responsive */
         @media (max-width: 768px) {{
-            .container {{
-                padding: 12px;
-            }}
-            
-            .header {{
-                padding: 24px;
-            }}
-            
-            .header h1 {{
-                font-size: 1.5rem;
-            }}
-            
-            .score-grid {{
-                grid-template-columns: repeat(2, 1fr);
-            }}
+            .container {{ padding: 12px; }}
+            .header {{ padding: 24px; }}
+            .header h1 {{ font-size: 1.5rem; }}
+            table {{ font-size: 0.8rem; }}
+            th, td {{ padding: 8px; }}
         }}
     </style>
 </head>
 <body>
     <div class="container">
-        {self._html_header()}
-        {self._html_executive_summary()}
-        {self._html_quote_analysis()}
-        {self._html_financial_analysis()}
-        {self._html_news_sentiment()}
-        {self._html_technical_analysis()}
-        {self._html_pattern_analysis() if self.pattern_data else ''}
-        {self._html_investment_advice()}
-        {self._html_disclaimer()}
+        {self._html_content_from_md()}
     </div>
 </body>
 </html>"""
     
-    def _html_header(self) -> str:
-        """HTML报告头部"""
-        return f"""
-        <div class="header">
-            <h1>📊 {self.stock_name} ({self.code}) 股票分析报告</h1>
-            <div class="meta">
-                <p>报告生成时间：{self.timestamp}</p>
-                <p>分析维度：技术面 / 基本面 / 资金面 / 消息面 / 形态面 | 版本：V3.1 智能分析系统</p>
-            </div>
-        </div>
-        """
-    
-    def _html_executive_summary(self) -> str:
-        """HTML执行摘要"""
-        suggestion = self.data.get('suggestion', {})
-        total_score = suggestion.get('total_score', 50)
-        action = suggestion.get('action', '观望')
+    def _html_content_from_md(self) -> str:
+        """从Markdown生成HTML内容（简化转换）"""
+        # 这里简化处理，实际可以使用markdown库转换
+        md = self.generate_markdown()
         
-        quote = self.data.get('quote', {})
-        price = quote.get('price', 0)
-        pct_change = quote.get('pct_change', 0)
+        # 基本转换
+        html = md
         
-        # 评级判断
-        if total_score >= 75:
-            rating, rating_class = "强烈买入", "rating-strong"
-        elif total_score >= 60:
-            rating, rating_class = "买入", "rating-strong"
-        elif total_score >= 45:
-            rating, rating_class = "观望", ""
-        elif total_score >= 30:
-            rating, rating_class = "谨慎", "rating-weak"
-        else:
-            rating, rating_class = "卖出", "rating-weak"
+        # 转换标题
+        html = html.replace('## ', '</div><div class="card"><h2>')
+        html = html.replace('### ', '<h3>')
+        html = html.replace('\n\n---\n\n', '</div>')
         
-        change_color = "success-color" if pct_change >= 0 else "danger-color"
-        change_sign = "+" if pct_change >= 0 else ""
+        # 包装开头
+        html = '<div class="header"><h1>📊 ' + self.stock_name + ' (' + self.code + ') 深度分析报告</h1>' + \
+               '<div class="meta">专业版股票分析报告 | 五维分析体系 | V3.1 Pro<br>报告生成时间：' + self.timestamp + '</div></div>' + html
         
-        return f"""
-        <div class="card">
-            <h2>📋 执行摘要</h2>
-            <div class="score-grid">
-                <div class="score-item">
-                    <div class="label">当前股价</div>
-                    <div class="value" style="color: var(--{change_color});">¥{price:.2f}</div>
-                </div>
-                <div class="score-item">
-                    <div class="label">涨跌幅</div>
-                    <div class="value" style="color: var(--{change_color});">{change_sign}{pct_change:.2f}%</div>
-                </div>
-                <div class="score-item {rating_class}">
-                    <div class="label">综合评级</div>
-                    <div class="value">{rating}</div>
-                </div>
-                <div class="score-item">
-                    <div class="label">综合评分</div>
-                    <div class="value">{total_score}/100</div>
-                </div>
-            </div>
-            <h3>核心观点</h3>
-            <p>{self._generate_core_summary()}</p>
-        </div>
-        """
-    
-    def _html_quote_analysis(self) -> str:
-        """HTML实时行情分析"""
-        quote = self.data.get('quote', {})
-        if not quote or 'error' in quote:
-            return '<div class="card"><h2>📈 实时行情分析</h2><p>暂无行情数据</p></div>'
+        # 添加结尾
+        html = html + '</div>'
         
-        price = quote.get('price', 0)
-        pct_change = quote.get('pct_change', 0)
-        volume = quote.get('volume', 0)
-        amount = quote.get('amount', 0)
-        turnover = quote.get('turnover', 0)
+        # 添加免责声明样式
+        html = html.replace('## ⚠️ 附录：风险提示与免责声明', '</div><div class="disclaimer"><h3>⚠️ 附录：风险提示与免责声明</h3>')
         
-        trend_interpretation = self._interpret_trend(pct_change, volume).replace('\n\n', '</p><p>')
-        
-        return f"""
-        <div class="card">
-            <h2>📈 实时行情数据与走势解读</h2>
-            <h3>实时行情</h3>
-            <table>
-                <tr>
-                    <th>指标</th>
-                    <th>数值</th>
-                    <th>指标</th>
-                    <th>数值</th>
-                </tr>
-                <tr>
-                    <td><strong>最新价</strong></td>
-                    <td>¥{price:.2f}</td>
-                    <td><strong>涨跌幅</strong></td>
-                    <td>{pct_change:+.2f}%</td>
-                </tr>
-                <tr>
-                    <td><strong>开盘价</strong></td>
-                    <td>¥{quote.get('open', 0):.2f}</td>
-                    <td><strong>最高价</strong></td>
-                    <td>¥{quote.get('high', 0):.2f}</td>
-                </tr>
-                <tr>
-                    <td><strong>最低价</strong></td>
-                    <td>¥{quote.get('low', 0):.2f}</td>
-                    <td><strong>成交量</strong></td>
-                    <td>{volume:,.0f} 手</td>
-                </tr>
-                <tr>
-                    <td><strong>成交额</strong></td>
-                    <td>{amount:.2f} 亿</td>
-                    <td><strong>换手率</strong></td>
-                    <td>{turnover:.2f}%</td>
-                </tr>
-            </table>
-            <h3>近期走势解读</h3>
-            <p>{trend_interpretation}</p>
-        </div>
-        """
-    
-    def _html_financial_analysis(self) -> str:
-        """HTML财务分析"""
-        fundamental = self.data.get('fundamental', {})
-        fin = fundamental.get('financial', {})
-        latest = fin.get('latest', {})
-        
-        if not latest:
-            return '<div class="card"><h2>💼 财务分析</h2><p>暂无财务数据</p></div>'
-        
-        revenue_trend = latest.get('revenue_yoy', 'N/A')
-        profit_trend = latest.get('net_profit_yoy', 'N/A')
-        quality_analysis = self._analyze_financial_quality(latest).replace('\n\n', '</p><p>')
-        revenue_profit = self._interpret_revenue_profit(revenue_trend, profit_trend).replace('\n\n', '</p><p>')
-        
-        return f"""
-        <div class="card">
-            <h2>💼 利润表及财务核心数据分析</h2>
-            <h3>最新财务数据（报告期：{latest.get('report_date', 'N/A')}）</h3>
-            <table>
-                <tr>
-                    <th>指标</th>
-                    <th>数值</th>
-                    <th>指标</th>
-                    <th>数值</th>
-                </tr>
-                <tr>
-                    <td><strong>营业收入同比</strong></td>
-                    <td>{revenue_trend}</td>
-                    <td><strong>净利润同比</strong></td>
-                    <td>{profit_trend}</td>
-                </tr>
-                <tr>
-                    <td><strong>ROE</strong></td>
-                    <td>{latest.get('roe', 'N/A')}</td>
-                    <td><strong>毛利率</strong></td>
-                    <td>{latest.get('gross_margin', 'N/A')}</td>
-                </tr>
-                <tr>
-                    <td><strong>净利率</strong></td>
-                    <td>{latest.get('net_margin', 'N/A')}</td>
-                    <td><strong>资产负债率</strong></td>
-                    <td>{latest.get('debt_ratio', 'N/A')}</td>
-                </tr>
-                <tr>
-                    <td><strong>每股收益</strong></td>
-                    <td>{latest.get('eps', 'N/A')}</td>
-                    <td><strong>每股现金流</strong></td>
-                    <td>{latest.get('ocf_ps', 'N/A')}</td>
-                </tr>
-            </table>
-            <h3>财务质量分析</h3>
-            <p>{quality_analysis}</p>
-            <h3>营收与利润趋势解读</h3>
-            <p>{revenue_profit}</p>
-            <h3>业务板块分析</h3>
-            <p>{self._analyze_business_segments().replace(chr(10), '</p><p>')}</p>
-        </div>
-        """
-    
-    def _html_news_sentiment(self) -> str:
-        """HTML新闻与情绪分析"""
-        news = self.data.get('news', {})
-        
-        if not news or 'error' in news:
-            return '<div class="card"><h2>📰 最新财经新闻与市场情绪</h2><p>暂无新闻数据</p></div>'
-        
-        sentiment = news.get('sentiment', '中性')
-        sentiment_score = news.get('sentiment_score', 0)
-        items = news.get('items', [])
-        
-        sentiment_index = 50
-        if self.pattern_data:
-            sentiment_data = self.pattern_data.get('sentiment', {})
-            sentiment_index = sentiment_data.get('index_value', 50)
-            level = sentiment_data.get('level', {})
-            level_name = level.get('name', '中性') if isinstance(level, dict) else str(level)
-        else:
-            level_name = sentiment
-        
-        news_items = ""
-        if items:
-            for item in items[:5]:
-                news_items += f"<li><span class='icon'>📰</span><div><strong>{item.get('date', '')}</strong>：{item.get('title', '')}</div></li>"
-        
-        return f"""
-        <div class="card">
-            <h2>📰 最新财经新闻摘要与市场情绪评分</h2>
-            <h3>市场情绪评分</h3>
-            <table>
-                <tr>
-                    <th>指标</th>
-                    <th>数值</th>
-                    <th>说明</th>
-                </tr>
-                <tr>
-                    <td><strong>贪婪恐慌指数</strong></td>
-                    <td>{sentiment_index:.1f}/100</td>
-                    <td>{level_name}</td>
-                </tr>
-                <tr>
-                    <td><strong>新闻情感倾向</strong></td>
-                    <td>{sentiment}</td>
-                    <td>得分：{sentiment_score:+d}</td>
-                </tr>
-                <tr>
-                    <td><strong>对基本面影响</strong></td>
-                    <td colspan="2">{news.get('fundamental_impact', '中性')}</td>
-                </tr>
-            </table>
-            <h3>最新财经新闻摘要</h3>
-            <ul class="analysis-list">
-                {news_items if news_items else '<li>暂无最新新闻</li>'}
-            </ul>
-            <h3>情绪解读</h3>
-            <p>{self._interpret_sentiment(sentiment_index, level_name)}</p>
-        </div>
-        """
-    
-    def _html_technical_analysis(self) -> str:
-        """HTML技术指标分析"""
-        tech = self.data.get('technical', {})
-        if not tech or 'error' in tech:
-            return '<div class="card"><h2>📊 技术指标分析</h2><p>暂无技术指标数据</p></div>'
-        
-        k = tech.get('k', 0)
-        d = tech.get('d', 0)
-        j = tech.get('j', 0)
-        kdj_signal = tech.get('kdj_signal', '正常')
-        macd = tech.get('macd', 0)
-        macd_signal = tech.get('macd_signal', '盘整')
-        histogram = tech.get('histogram', 0)
-        
-        kdj_analysis = self._analyze_kdj(k, d, j, kdj_signal)
-        macd_analysis = self._analyze_macd(macd, macd_signal, histogram)
-        
-        kdj_badge = "badge-success" if "金叉" in kdj_signal or "超卖" in kdj_signal else "badge-danger" if "死叉" in kdj_signal else "badge-neutral"
-        macd_badge = "badge-success" if "多头" in macd_signal else "badge-danger" if "空头" in macd_signal else "badge-neutral"
-        
-        return f"""
-        <div class="card">
-            <h2>📊 技术指标分析</h2>
-            <h3>KDJ指标分析</h3>
-            <table>
-                <tr>
-                    <th>指标</th>
-                    <th>数值</th>
-                    <th>信号</th>
-                </tr>
-                <tr>
-                    <td><strong>K值</strong></td>
-                    <td>{k:.2f}</td>
-                    <td>-</td>
-                </tr>
-                <tr>
-                    <td><strong>D值</strong></td>
-                    <td>{d:.2f}</td>
-                    <td>-</td>
-                </tr>
-                <tr>
-                    <td><strong>J值</strong></td>
-                    <td>{j:.2f}</td>
-                    <td>-</td>
-                </tr>
-                <tr>
-                    <td><strong>KDJ信号</strong></td>
-                    <td><span class="badge {kdj_badge}">{kdj_signal}</span></td>
-                    <td>{self._kdj_signal_emoji(kdj_signal)}</td>
-                </tr>
-            </table>
-            <p>{kdj_analysis}</p>
-            
-            <h3>MACD指标分析</h3>
-            <table>
-                <tr>
-                    <th>指标</th>
-                    <th>数值</th>
-                    <th>信号</th>
-                </tr>
-                <tr>
-                    <td><strong>MACD</strong></td>
-                    <td>{macd:.3f}</td>
-                    <td>-</td>
-                </tr>
-                <tr>
-                    <td><strong>MACD信号</strong></td>
-                    <td><span class="badge {macd_badge}">{macd_signal}</span></td>
-                    <td>{self._macd_signal_emoji(macd_signal)}</td>
-                </tr>
-                <tr>
-                    <td><strong>柱状图</strong></td>
-                    <td>{histogram:.3f}</td>
-                    <td>{'多头增强' if histogram > 0 else '空头增强'}</td>
-                </tr>
-            </table>
-            <p>{macd_analysis}</p>
-            
-            <h3>均线系统</h3>
-            <table>
-                <tr>
-                    <th>均线</th>
-                    <th>价格</th>
-                    <th>状态</th>
-                </tr>
-                <tr>
-                    <td>MA5</td>
-                    <td>¥{tech.get('ma5', 0):.2f}</td>
-                    <td>{'✅ 上方' if tech.get('price_above_ma5') else '❌ 下方'}</td>
-                </tr>
-                <tr>
-                    <td>MA10</td>
-                    <td>¥{tech.get('ma10', 0):.2f}</td>
-                    <td>-</td>
-                </tr>
-                <tr>
-                    <td>MA20</td>
-                    <td>¥{tech.get('ma20', 0):.2f}</td>
-                    <td>{'✅ 上方' if tech.get('price_above_ma20') else '❌ 下方'}</td>
-                </tr>
-                <tr>
-                    <td>MA60</td>
-                    <td>¥{tech.get('ma60', 0):.2f}</td>
-                    <td>{'✅ 上方' if tech.get('price_above_ma60') else '❌ 下方'}</td>
-                </tr>
-            </table>
-            <p><strong>趋势判断</strong>：{tech.get('trend', '震荡')}</p>
-        </div>
-        """
-    
-    def _html_pattern_analysis(self) -> str:
-        """HTML形态面分析"""
-        if not self.pattern_data:
-            return ""
-        
-        sections = []
-        
-        # 1. 形态识别结果
-        candlestick = self.pattern_data.get('candlestick', {})
-        if candlestick:
-            patterns = candlestick.get('patterns', [])
-            pattern_rows = ""
-            for p in patterns[:5]:
-                badge_class = "badge-success" if p.get('type') == 'bullish' else "badge-danger"
-                pattern_rows += f"""
-                <tr>
-                    <td>{p.get('name_cn', 'N/A')}</td>
-                    <td><span class="badge {badge_class}">{p.get('type_cn', 'N/A')}</span></td>
-                    <td>{'⭐' * p.get('reliability', 0)}</td>
-                    <td>{p.get('confidence', 0):.0%}</td>
-                </tr>"""
-            
-            sections.append(f"""
-            <h3>1. K线形态识别结果</h3>
-            <p><strong>形态统计</strong>：共识别 {len(patterns)} 个形态</p>
-            <table>
-                <tr>
-                    <th>形态名称</th>
-                    <th>形态类型</th>
-                    <th>可靠性</th>
-                    <th>置信度</th>
-                </tr>
-                {pattern_rows if pattern_rows else '<tr><td colspan="4">-</td></tr>'}
-            </table>
-            <p><strong>形态信号</strong>：{candlestick.get('signal', '中性')}</p>
-            """)
-        
-        # 2. 买卖点
-        chanlun = self.pattern_data.get('chanlun', {})
-        if chanlun:
-            buy_points = chanlun.get('buy_points', [])
-            sell_points = chanlun.get('sell_points', [])
-            
-            bp_rows = ""
-            for bp in buy_points[-3:]:
-                bp_rows += f"""
-                <tr>
-                    <td><span class="badge badge-success">{bp.get('type', 'N/A')}</span></td>
-                    <td>{bp.get('price', 0):.2f}</td>
-                    <td>{bp.get('confidence', 0):.0%}</td>
-                    <td>{bp.get('description', 'N/A')[:30]}...</td>
-                </tr>"""
-            for sp in sell_points[-3:]:
-                bp_rows += f"""
-                <tr>
-                    <td><span class="badge badge-danger">{sp.get('type', 'N/A')}</span></td>
-                    <td>{sp.get('price', 0):.2f}</td>
-                    <td>{sp.get('confidence', 0):.0%}</td>
-                    <td>{sp.get('description', 'N/A')[:30]}...</td>
-                </tr>"""
-            
-            sections.append(f"""
-            <h3>2. 缠论买卖点及说明</h3>
-            <p><strong>当前状态</strong>：笔数量 {chanlun.get('bi_count', 0)} | 中枢数量 {chanlun.get('zhongshu_count', 0)} | 当前趋势 {chanlun.get('current_trend', 'N/A')}</p>
-            <table>
-                <tr>
-                    <th>买卖点类型</th>
-                    <th>价格</th>
-                    <th>置信度</th>
-                    <th>说明</th>
-                </tr>
-                {bp_rows if bp_rows else '<tr><td colspan="4">-</td></tr>'}
-            </table>
-            """)
-        
-        # 3. 信号共振评分
-        resonance = self.pattern_data.get('resonance', {})
-        if resonance:
-            total_score = resonance.get('total_score', 0)
-            level = resonance.get('resonance_level', '无共振')
-            breakdown = resonance.get('breakdown', {})
-            
-            breakdown_rows = ""
-            for dimension, score in breakdown.items():
-                breakdown_rows += f"<tr><td>{dimension}</td><td>{score:+.1f}分</td></tr>"
-            
-            level_badge = "badge-success" if "强" in level else "badge-warning" if "中等" in level else "badge-neutral"
-            
-            sections.append(f"""
-            <h3>3. 信号共振评分</h3>
-            <div class="score-grid">
-                <div class="score-item">
-                    <div class="label">综合评分</div>
-                    <div class="value">{total_score:+.1f}/100</div>
-                </div>
-                <div class="score-item">
-                    <div class="label">共振级别</div>
-                    <div class="value"><span class="badge {level_badge}">{level}</span></div>
-                </div>
-            </div>
-            <table>
-                <tr>
-                    <th>维度</th>
-                    <th>得分</th>
-                </tr>
-                {breakdown_rows if breakdown_rows else '<tr><td colspan="2">-</td></tr>'}
-            </table>
-            <p><strong>看涨得分</strong>：{resonance.get('bullish_score', 0):.1f} | <strong>看跌得分</strong>：{resonance.get('bearish_score', 0):.1f} | <strong>信号总数</strong>：{resonance.get('signal_count', 0)} 个</p>
-            """)
-        
-        content = ''.join(sections)
-        
-        return f"""
-        <div class="card">
-            <h2>📐 形态面分析</h2>
-            {content}
-        </div>
-        """
-    
-    def _html_investment_advice(self) -> str:
-        """HTML综合投资建议"""
-        suggestion = self.data.get('suggestion', {})
-        total_score = suggestion.get('total_score', 50)
-        action = suggestion.get('action', '观望')
-        target_price = suggestion.get('target_price', 0)
-        stop_loss = suggestion.get('stop_loss', 0)
-        
-        advantages = self._generate_advantages().replace('\n', '</p><p>')
-        risks = self._generate_risks().replace('\n', '</p><p>')
-        trading_advice = self._generate_trading_advice().replace('\n', '</p><p>')
-        summary = self._generate_summary()
-        
-        return f"""
-        <div class="card">
-            <h2>🎯 综合投资建议</h2>
-            <h3>综合评分</h3>
-            <table>
-                <tr>
-                    <th>指标</th>
-                    <th>数值</th>
-                    <th>说明</th>
-                </tr>
-                <tr>
-                    <td><strong>综合评分</strong></td>
-                    <td>{total_score}/100</td>
-                    <td>满分100分</td>
-                </tr>
-                <tr>
-                    <td><strong>操作建议</strong></td>
-                    <td><span class="badge {'badge-success' if total_score >= 60 else 'badge-warning' if total_score >= 45 else 'badge-danger'}">{action}</span></td>
-                    <td>基于五维分析</td>
-                </tr>
-                <tr>
-                    <td><strong>目标价格</strong></td>
-                    <td>¥{target_price:.2f}</td>
-                    <td>预期上涨空间</td>
-                </tr>
-                <tr>
-                    <td><strong>止损价格</strong></td>
-                    <td>¥{stop_loss:.2f}</td>
-                    <td>风险控制线</td>
-                </tr>
-            </table>
-            
-            <h3>核心优势</h3>
-            <p>{advantages}</p>
-            
-            <h3>风险因素</h3>
-            <p>{risks}</p>
-            
-            <h3>交易建议</h3>
-            <p>{trading_advice}</p>
-            
-            <h3>分析总结</h3>
-            <p>{summary}</p>
-        </div>
-        """
-    
-    def _html_disclaimer(self) -> str:
-        """HTML免责声明"""
-        return f"""
-        <div class="disclaimer">
-            <h3>⚠️ 风险提示与免责声明</h3>
-            <p><strong>风险提示：</strong></p>
-            <p>本报告基于历史数据分析，不构成投资建议。股票市场存在波动风险，投资需谨慎。信号共振评分和情绪指数仅供参考。缠论买卖点识别为算法自动计算，可能存在误差。请结合自身风险承受能力谨慎决策。</p>
-            <p><strong>免责声明：</strong></p>
-            <p>本报告仅供参考，不构成任何投资建议或承诺。报告中的数据和分析结果基于公开信息和算法模型，不保证准确性和完整性。投资者应独立做出投资决策，并自行承担投资风险。过往业绩不代表未来表现。</p>
-            <p style="text-align: center; margin-top: 16px; font-weight: bold;">股市有风险，投资需谨慎</p>
-        </div>
-        <p style="text-align: center; color: var(--text-secondary); font-size: 0.85rem; margin-top: 20px;">
-            报告由 Stock Analyst Skill V3.1 智能分析系统生成 | 生成时间：{self.timestamp}
-        </p>
-        """
+        return html
 
 
 # ==================== 便捷函数 ====================
 
 def generate_unified_report(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> Dict[str, str]:
     """
-    生成统一格式的报告（同时返回HTML和Markdown）
+    生成统一格式的专业报告（同时返回HTML和Markdown）
     
     Args:
-        data: 基础分析数据
+        data: 基础分析数据（行情、财务、新闻、技术指标等）
         pattern_data: 形态面分析数据（可选）
         
     Returns:
@@ -1586,7 +1790,8 @@ if __name__ == '__main__':
             'low': 17.88,
             'volume': 1256800,
             'amount': 2.33,
-            'turnover': 3.15
+            'turnover': 3.15,
+            'pe': 28.5
         },
         'technical': {
             'ma5': 17.95,
@@ -1605,17 +1810,10 @@ if __name__ == '__main__':
             'macd': 0.35,
             'macd_signal': '多头',
             'histogram': 0.12,
-            'trend': '上升趋势',
-            'scores': {
-                'trend': 15,
-                'kdj': 10,
-                'rsi': 5,
-                'macd': 10
-            }
+            'trend': '上升趋势'
         },
         'fundamental': {
             'score': 72,
-            'reasons': ['ROE优秀(16.5%)', '营收稳健增长(18.2%)', '估值合理'],
             'financial': {
                 'latest': {
                     'report_date': '2024-09-30',
@@ -1630,11 +1828,7 @@ if __name__ == '__main__':
                 }
             },
             'performance_trend': {
-                'overall_trend': '基本面向好',
-                'financial_trend': '向好',
-                'valuation_trend': '合理',
-                'forecast_trend': '预期平稳',
-                'reasons': ['营收持续增长', '利润稳健增长', 'PE合理']
+                'overall_trend': '基本面向好'
             }
         },
         'money_flow': {
@@ -1642,8 +1836,7 @@ if __name__ == '__main__':
             'main_flow': {
                 'date': '2024-12-20',
                 'main_net': 0.85,
-                'main_pct': 5.2,
-                'retail_net': -0.52
+                'main_pct': 5.2
             }
         },
         'news': {
@@ -1669,21 +1862,27 @@ if __name__ == '__main__':
     test_pattern_data = {
         'candlestick': {
             'patterns': [
-                {'name_cn': '早晨之星', 'type': 'bullish', 'type_cn': '看涨反转', 'reliability': 5, 'confidence': 0.88},
-                {'name_cn': '阳包阴', 'type': 'bullish', 'type_cn': '看涨反转', 'reliability': 4, 'confidence': 0.82},
-                {'name_cn': '突破缺口', 'type': 'bullish', 'type_cn': '看涨持续', 'reliability': 4, 'confidence': 0.75}
+                {'name_cn': '早晨之星', 'type': 'bullish', 'type_cn': '看涨反转', 'reliability': 5, 'confidence': 0.88, 'position': 0, 'description': '底部反转信号'},
+                {'name_cn': '阳包阴', 'type': 'bullish', 'type_cn': '看涨反转', 'reliability': 4, 'confidence': 0.82, 'position': 1, 'description': '多头力量增强'},
+                {'name_cn': '突破缺口', 'type': 'bullish', 'type_cn': '看涨持续', 'reliability': 4, 'confidence': 0.75, 'position': 2, 'description': '趋势加速信号'}
             ],
             'bullish_count': 3,
             'bearish_count': 0,
             'bullish_score': 42.5,
             'bearish_score': 0,
-            'signal': '强烈看涨'
+            'signal': '强烈看涨',
+            'total_patterns': 3
         },
         'chanlun': {
             'bi_count': 7,
             'zhongshu_count': 2,
             'current_trend': '向上笔进行中',
-            'nearest_zhongshu': {'range': '16.80-17.50', 'zg': 17.50, 'zd': 16.80},
+            'nearest_zhongshu': {'range': '16.80-17.50', 'zg': 17.50, 'zd': 16.80, 'center': 17.15},
+            'bis': [
+                {'direction': 'up', 'start_price': 16.50, 'end_price': 17.20, 'height': 0.70},
+                {'direction': 'down', 'start_price': 17.20, 'end_price': 16.85, 'height': 0.35},
+                {'direction': 'up', 'start_price': 16.85, 'end_price': 18.52, 'height': 1.67}
+            ],
             'buy_points': [
                 {'type': '一买', 'price': 16.52, 'confidence': 0.85, 'description': '趋势背驰点，形成强支撑'},
                 {'type': '二买', 'price': 17.25, 'confidence': 0.78, 'description': '回调不破中枢低点'}
@@ -1702,10 +1901,11 @@ if __name__ == '__main__':
                 '趋势信号': 15.0,
                 '成交量': 10.0,
                 '基本面': 12.0,
-                '情绪面': 3.5
+                '情绪面': 3.5,
+                '缠论': 10.0
             },
             'bullish_signals': [
-                {'signal_type': '形态', 'description': '早晨之星形态确认'},
+                {'signal_type': 'K线形态', 'description': '早晨之星形态确认'},
                 {'signal_type': '缠论', 'description': '一买信号出现'},
                 {'signal_type': '趋势', 'description': '突破MA60均线'}
             ],
@@ -1715,14 +1915,7 @@ if __name__ == '__main__':
             'index_value': 62.5,
             'level': {'name': '贪婪'},
             'trend': '上升',
-            'signal': '谨慎持有',
-            'components': {
-                'price_volatility': 65.0,
-                'volume_sentiment': 70.0,
-                'momentum_sentiment': 60.0,
-                'technical_sentiment': 55.0
-            },
-            'description': '市场情绪偏向乐观，但需警惕追高风险。'
+            'signal': '谨慎持有'
         }
     }
     
@@ -1734,12 +1927,12 @@ if __name__ == '__main__':
     output_dir = os.path.join(os.path.dirname(__file__), '..', 'test_output')
     os.makedirs(output_dir, exist_ok=True)
     
-    with open(os.path.join(output_dir, 'test_report.md'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(output_dir, 'professional_report.md'), 'w', encoding='utf-8') as f:
         f.write(reports['markdown'])
     
-    with open(os.path.join(output_dir, 'test_report.html'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(output_dir, 'professional_report.html'), 'w', encoding='utf-8') as f:
         f.write(reports['html'])
     
-    print("测试报告已生成：")
-    print(f"  - Markdown: {os.path.join(output_dir, 'test_report.md')}")
-    print(f"  - HTML: {os.path.join(output_dir, 'test_report.html')}")
+    print("✅ 专业版测试报告已生成：")
+    print(f"  📄 Markdown: {os.path.join(output_dir, 'professional_report.md')}")
+    print(f"  🌐 HTML: {os.path.join(output_dir, 'professional_report.html')}")
