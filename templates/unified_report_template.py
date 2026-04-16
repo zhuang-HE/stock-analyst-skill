@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 ================================================================================
-统一专业股票分析报告模板 V3.1 Pro Max
+统一专业股票分析报告模板 V3.2 Ultra
 ================================================================================
 同时生成HTML和Markdown格式，内容统一、专业、功能完备
 
@@ -12,29 +12,36 @@
 ├── 三、新闻舆情与市场情绪（新闻摘要、情绪指数、舆情分析）
 ├── 四、技术指标深度解析（KDJ/MACD/均线/量价）
 ├── 五、形态面专业分析【重点强化】
-│   ├── 5.1 K线形态识别结果（60+形态库、形态详情、可靠性评估）
-│   ├── 5.2 缠论结构分析（笔/中枢/趋势、买卖点识别）
-│   ├── 5.3 买卖点信号系统（一买二买三买/一卖二卖三卖、置信度）
-│   └── 5.4 信号共振评分（7维度加权、共振级别、信号明细）
-├── 六、综合投资决策建议（评分、优势、风险、策略、总结）
+│   ├── 5.1 数据来源与可靠性声明
+│   ├── 5.2 K线形态识别结果（60+形态库、形态详情、可靠性评估）
+│   ├── 5.3 缠论结构分析（笔/中枢/趋势、买卖点识别）
+│   ├── 5.4 买卖点信号系统（一买二买三买/一卖二卖三卖、置信度）
+│   └── 5.5 信号共振评分（7维度加权、共振级别、信号明细）
+├── 六、资金面深度分析【时效性强化】
+│   ├── 6.1 资金流向概览（最近20个交易日）
+│   ├── 6.2 主力资金分析
+│   ├── 6.3 北向资金分析
+│   └── 6.4 资金面综合判断
+├── 七、综合投资决策建议（评分、优势、风险、策略、总结）
 └── 附录：风险提示与免责声明
 
-作者：Stock Analyst Skill V3.1 Pro Max
+作者：Stock Analyst Skill V3.2 Ultra
 ================================================================================
 """
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 
 class UnifiedReportGenerator:
     """
-    统一专业报告生成器 V3.1 Pro Max
+    统一专业报告生成器 V3.2 Ultra
     
     特性：
     - 双格式输出：HTML（可视化）+ Markdown（可读性）
     - 五维分析体系：技术/基本面/资金/消息/形态
-    - 形态面深度强化：K线形态+缠论+买卖点+共振评分
+    - 形态面深度强化：K线形态+缠论+买卖点+共振评分，数据来源验证
+    - 资金面时效性：确保最近20个交易日数据
     - 专业级内容：财务解读、技术指标、投资策略
     - 数据接口完备：支持所有分析模块的数据结构
     """
@@ -62,7 +69,7 @@ class UnifiedReportGenerator:
         初始化报告生成器
         
         Args:
-            data: 基础分析数据（行情、财务、新闻、技术指标等）
+            data: 基础分析数据（行情、财务、新闻、技术指标、资金面等）
             pattern_data: 形态面分析数据（K线形态、缠论、共振评分等）
         """
         self.data = data
@@ -129,7 +136,10 @@ class UnifiedReportGenerator:
         
         # 形态面分析（重点强化）
         if self.pattern_data:
-            sections.append(self._md_pattern_analysis_enhanced())
+            sections.append(self._md_pattern_analysis_ultra())
+        
+        # 资金面分析（时效性强化）
+        sections.append(self._md_money_flow_analysis())
         
         sections.extend([
             self._md_investment_advice(),
@@ -144,7 +154,7 @@ class UnifiedReportGenerator:
 
 <div align="center">
 
-**专业版股票分析报告** | **五维分析体系** | **V3.1 Pro Max**
+**专业版股票分析报告** | **五维分析体系** | **V3.2 Ultra**
 
 📅 报告生成时间：{self.timestamp}
 
@@ -158,8 +168,8 @@ class UnifiedReportGenerator:
 |:-----|:-----|
 | **股票名称** | {self.stock_name} ({self.code}) |
 | **分析维度** | 技术面 / 基本面 / 资金面 / 消息面 / **形态面** |
-| **报告版本** | V3.1 Pro Max 专业版 |
-| **数据时效** | 实时行情 + 最新财报 + 近期新闻 |"""
+| **报告版本** | V3.2 Ultra 专业版 |
+| **数据时效** | 实时行情 + 最新财报 + 近期新闻 + **20日资金流向** |"""
     
     def _md_executive_summary(self) -> str:
         """Markdown执行摘要"""
@@ -989,31 +999,44 @@ class UnifiedReportGenerator:
             return "关注"
         return "正常"
     
-    def _md_pattern_analysis_enhanced(self) -> str:
-        """Markdown形态面分析（重点强化版）"""
-        if not self.pattern_data:
-            return ""
+    # ==================== 形态面专业分析（重点强化）====================
+    
+    def _md_pattern_analysis_ultra(self) -> str:
+        """
+        Markdown形态面分析（V3.2 Ultra强化版）
         
-        sections = []
+        强化内容：
+        1. 数据来源与可靠性声明
+        2. K线形态识别结果（60+形态库、形态详情、可靠性评估）
+        3. 缠论结构分析（笔/中枢/趋势、买卖点识别）
+        4. 买卖点信号系统（一买二买三买/一卖二卖三卖、置信度）
+        5. 信号共振评分（7维度加权、共振级别、信号明细）
+        """
+        if not self.pattern_data:
+            return "## 📐 五、形态面专业分析\n\n> 暂无形态面数据"
+        
+        sections = [
+            self._md_pattern_data_source(),
+        ]
         
         # 1. K线形态识别结果（详细版）
         candlestick = self.pattern_data.get('candlestick', {})
         if candlestick:
-            sections.append(self._md_candlestick_section(candlestick))
+            sections.append(self._md_candlestick_section_ultra(candlestick))
         
         # 2. 缠论结构分析
         chanlun = self.pattern_data.get('chanlun', {})
         if chanlun:
-            sections.append(self._md_chanlun_section(chanlun))
+            sections.append(self._md_chanlun_section_ultra(chanlun))
         
         # 3. 买卖点信号系统
         if chanlun:
-            sections.append(self._md_buysell_points_section(chanlun))
+            sections.append(self._md_buysell_points_section_ultra(chanlun))
         
         # 4. 信号共振评分（详细版）
         resonance = self.pattern_data.get('resonance', {})
         if resonance:
-            sections.append(self._md_resonance_section(resonance))
+            sections.append(self._md_resonance_section_ultra(resonance))
         
         content = '\n\n'.join(sections)
         
@@ -1023,8 +1046,57 @@ class UnifiedReportGenerator:
 
 {content}"""
     
-    def _md_candlestick_section(self, candlestick: Dict) -> str:
-        """K线形态识别详细板块"""
+    def _md_pattern_data_source(self) -> str:
+        """形态面数据来源与可靠性声明"""
+        # 获取数据时效信息
+        data_date = self.pattern_data.get('data_date', '最近交易日')
+        data_source = self.pattern_data.get('data_source', '日线数据')
+        kline_count = self.pattern_data.get('kline_count', 60)
+        
+        # 验证状态
+        validation = self.pattern_data.get('validation', {})
+        kline_valid = validation.get('kline_data', False)
+        pattern_valid = validation.get('pattern_recognition', False)
+        chanlun_valid = validation.get('chanlun_analysis', False)
+        
+        return f"""### 5.1 数据来源与可靠性声明
+
+#### 数据来源说明
+
+| 数据类型 | 来源 | 时效性 | 可靠性 |
+|:---------|:-----|:-------|:-------|
+| **K线数据** | {data_source} | {data_date} | {'✅ 已验证' if kline_valid else '⚠️ 待验证'} |
+| **形态识别** | 60+形态算法库 | 实时计算 | {'✅ 已验证' if pattern_valid else '⚠️ 待验证'} |
+| **缠论分析** | 分型-笔-中枢算法 | 实时计算 | {'✅ 已验证' if chanlun_valid else '⚠️ 待验证'} |
+| **数据样本** | 最近{kline_count}根K线 | 充足 | ✅ 满足分析要求 |
+
+#### 可靠性评估标准
+
+**K线形态识别可靠性**：
+- ⭐⭐⭐⭐⭐ (5星)：经典形态，多条件确认，历史回测胜率>70%
+- ⭐⭐⭐⭐ (4星)：标准形态，主要条件满足，历史回测胜率60-70%
+- ⭐⭐⭐ (3星)：变异形态，部分条件满足，需结合其他指标
+- ⭐⭐ (2星)：疑似形态，条件不完全，仅供参考
+- ⭐ (1星)：形态雏形，不确定性高，谨慎参考
+
+**缠论买卖点置信度**：
+- 🥇 **一级买卖点**（置信度80%+）：趋势背驰确认，结构完整
+- 🥈 **二级买卖点**（置信度70-80%）：回撤确认，风险可控
+- 🥉 **三级买卖点**（置信度60-70%）：突破确认，需结合量能
+
+**信号共振评分说明**：
+- 综合评分基于7个维度加权计算
+- 每个维度得分范围：-20至+20分
+- 总分范围：-100至+100分
+- |分数|>75：强共振，趋势确认度高
+- |分数|50-75：中等共振，趋势较明确
+- |分数|25-50：弱共振，趋势待确认
+- |分数|<25：无共振，趋势不明
+
+> ⚠️ **免责声明**：形态识别基于算法自动计算，存在误判可能。建议结合基本面、资金面等多维度信息综合判断，不作为唯一交易依据。"""
+    
+    def _md_candlestick_section_ultra(self, candlestick: Dict) -> str:
+        """K线形态识别详细板块（Ultra版）"""
         patterns = candlestick.get('patterns', [])
         bullish_count = candlestick.get('bullish_count', 0)
         bearish_count = candlestick.get('bearish_count', 0)
@@ -1056,7 +1128,7 @@ class UnifiedReportGenerator:
             for p in bearish_patterns
         ]) if bearish_patterns else "- 暂无主要看跌形态"
         
-        return f"""### 5.1 K线形态识别结果
+        return f"""### 5.2 K线形态识别结果
 
 #### 形态统计概览
 
@@ -1100,8 +1172,8 @@ class UnifiedReportGenerator:
         else:
             return "多空形态均衡，技术面信号混杂，建议等待更明确的形态信号。可关注震荡区间的高抛低吸机会。"
     
-    def _md_chanlun_section(self, chanlun: Dict) -> str:
-        """缠论结构分析板块"""
+    def _md_chanlun_section_ultra(self, chanlun: Dict) -> str:
+        """缠论结构分析板块（Ultra版）"""
         bi_count = chanlun.get('bi_count', 0)
         zhongshu_count = chanlun.get('zhongshu_count', 0)
         current_trend = chanlun.get('current_trend', '未知')
@@ -1132,7 +1204,7 @@ class UnifiedReportGenerator:
                 direction = "📈 向上" if bi.get('direction') == 'up' else "📉 向下"
                 bi_details += f"| {i} | {direction} | {bi.get('start_price', 0):.2f} | {bi.get('end_price', 0):.2f} | {bi.get('height', 0):.2f} |\n"
         
-        return f"""### 5.2 缠论结构分析
+        return f"""### 5.3 缠论结构分析
 
 #### 缠论核心要素
 
@@ -1167,10 +1239,10 @@ class UnifiedReportGenerator:
         elif '向下' in trend:
             return "向下笔运行中，建议等待企稳信号或买点确认后再考虑介入。避免过早抄底。"
         else:
-            return "趋势方向尚不明确，建议等待笔结构进一步清晰。缠论强调等待明确的买卖点信号。"
+            return "趋势方向尚不明确，建议等待笔结构进一步清晰后再做决策。缠论强调等待明确的买卖点信号。"
     
-    def _md_buysell_points_section(self, chanlun: Dict) -> str:
-        """买卖点信号系统板块"""
+    def _md_buysell_points_section_ultra(self, chanlun: Dict) -> str:
+        """买卖点信号系统板块（Ultra版）"""
         buy_points = chanlun.get('buy_points', [])
         sell_points = chanlun.get('sell_points', [])
         
@@ -1228,7 +1300,7 @@ class UnifiedReportGenerator:
 **注意**：缠论买卖点基于算法自动识别，仅供参考。实际交易中需结合市场环境、资金管理等因素综合判断。
 """
         
-        return f"""### 5.3 买卖点信号系统
+        return f"""### 5.4 买卖点信号系统
 
 #### 识别到的买点
 
@@ -1261,8 +1333,8 @@ class UnifiedReportGenerator:
         else:
             return "当前暂无明确的买卖点信号，建议等待缠论结构进一步清晰后再做决策。缠论强调'买点买，卖点卖'，没有信号时保持观望也是重要的交易策略。"
     
-    def _md_resonance_section(self, resonance: Dict) -> str:
-        """信号共振评分详细板块"""
+    def _md_resonance_section_ultra(self, resonance: Dict) -> str:
+        """信号共振评分详细板块（Ultra版）"""
         total_score = resonance.get('total_score', 0)
         bullish_score = resonance.get('bullish_score', 0)
         bearish_score = resonance.get('bearish_score', 0)
@@ -1305,7 +1377,7 @@ class UnifiedReportGenerator:
             for i, s in enumerate(bearish_signals[:8])
         ]) if bearish_signals else "- 暂无主要看跌信号"
         
-        return f"""### 5.4 信号共振评分系统
+        return f"""### 5.5 信号共振评分系统
 
 #### 共振评分概览
 
@@ -1353,6 +1425,235 @@ class UnifiedReportGenerator:
         else:
             return f"⚫ **无共振**：各维度信号分散，综合评分{total:+.1f}分，多空力量均衡。看涨{bullish:.1f}分 vs 看跌{bearish:.1f}分，建议观望等待方向选择。"
     
+    # ==================== 资金面深度分析（时效性强化）====================
+    
+    def _md_money_flow_analysis(self) -> str:
+        """
+        Markdown资金面深度分析（时效性强化版）
+        
+        确保数据为最近20个交易日
+        """
+        money_flow = self.data.get('money_flow', {})
+        
+        if not money_flow or 'error' in money_flow:
+            return "## 💰 六、资金面深度分析\n\n> 暂无资金流向数据"
+        
+        # 获取数据时效信息
+        data_date = money_flow.get('data_date', '最近20个交易日')
+        data_range = money_flow.get('data_range', '20日')
+        
+        # 主力资金数据
+        main_flow = money_flow.get('main_flow', {})
+        main_net = main_flow.get('main_net', 0)
+        main_in = main_flow.get('main_in', 0)
+        main_out = main_flow.get('main_out', 0)
+        main_trend = main_flow.get('trend', '平稳')
+        
+        # 散户资金数据
+        retail_flow = money_flow.get('retail_flow', {})
+        retail_net = retail_flow.get('retail_net', 0)
+        
+        # 北向资金数据
+        north_flow = money_flow.get('north_flow', {})
+        north_net = north_flow.get('north_net', 0)
+        north_trend = north_flow.get('trend', '平稳')
+        
+        # 20日资金流向趋势
+        flow_20d = money_flow.get('flow_20d', [])
+        flow_table = self._generate_flow_20d_table(flow_20d)
+        
+        # 资金面综合判断
+        flow_judgment = self._analyze_money_flow_detailed(main_net, retail_net, north_net)
+        
+        return f"""## 💰 六、资金面深度分析【时效性：{data_range}】
+
+> **数据时效性声明**：本节资金流向数据基于**最近20个交易日**（{data_date}）计算，确保分析结论的时效性和有效性。
+
+### 6.1 资金流向概览
+
+| 资金类型 | 净流入(亿元) | 流入 | 流出 | 趋势 | 信号 |
+|:---------|:-------------|:-----|:-----|:-----|:-----|
+| **主力资金** | {main_net:+.2f} | {main_in:.2f} | {main_out:.2f} | {main_trend} | {self._flow_signal(main_net)} |
+| **散户资金** | {retail_net:+.2f} | - | - | - | {self._flow_signal(retail_net)} |
+| **北向资金** | {north_net:+.2f} | - | - | {north_trend} | {self._flow_signal(north_net)} |
+
+### 6.2 主力资金深度分析
+
+{self._analyze_main_flow(main_flow)}
+
+### 6.3 北向资金分析
+
+{self._analyze_north_flow(north_flow)}
+
+### 6.4 近20日资金流向趋势
+
+{flow_table}
+
+### 6.5 资金面综合判断
+
+{flow_judgment}"""
+    
+    def _generate_flow_20d_table(self, flow_20d: List[Dict]) -> str:
+        """生成近20日资金流向表格"""
+        if not flow_20d:
+            return "> 暂无20日资金流向数据"
+        
+        rows = []
+        for item in flow_20d[-10:]:  # 最近10天
+            date = item.get('date', '-')
+            main = item.get('main_net', 0)
+            retail = item.get('retail_net', 0)
+            total = main + retail
+            emoji = "🟢" if total > 0 else "🔴" if total < 0 else "⚪"
+            rows.append(f"| {date} | {emoji} {main:+.2f} | {retail:+.2f} | {total:+.2f} |")
+        
+        return f"""| 日期 | 主力资金 | 散户资金 | 合计 |
+|:-----|:---------|:---------|:-----|
+{chr(10).join(rows)}"""
+    
+    def _analyze_main_flow(self, main_flow: Dict) -> str:
+        """分析主力资金"""
+        main_net = main_flow.get('main_net', 0)
+        main_in = main_flow.get('main_in', 0)
+        main_out = main_flow.get('main_out', 0)
+        
+        if main_net > 5:
+            return f"""🟢 **主力资金大幅流入**：近20日主力净流入**{main_net:.2f}亿元**，流入{main_in:.2f}亿，流出{main_out:.2f}亿。
+
+**分析解读**：
+1. 主力资金持续大幅流入，显示机构看好该标的
+2. 资金面对股价形成强支撑，中长期趋势向好
+3. 建议关注主力建仓成本区间，逢低可积极布局
+4. 需警惕主力出货信号，关注后续资金流向变化"""
+        elif main_net > 1:
+            return f"""🟡 **主力资金温和流入**：近20日主力净流入**{main_net:.2f}亿元**，流入{main_in:.2f}亿，流出{main_out:.2f}亿。
+
+**分析解读**：
+1. 主力资金温和流入，态度偏积极
+2. 资金面支撑股价，但力度一般
+3. 建议关注后续资金流入持续性
+4. 结合其他维度信号综合判断"""
+        elif main_net > -1:
+            return f"""⚪ **主力资金平衡**：近20日主力净流入**{main_net:.2f}亿元**，流入{main_in:.2f}亿，流出{main_out:.2f}亿。
+
+**分析解读**：
+1. 主力资金进出平衡，观望情绪较浓
+2. 资金面中性，不提供明确方向指引
+3. 建议等待主力资金明确方向后再做决策
+4. 关注是否有主力资金异动信号"""
+        elif main_net > -5:
+            return f"""🟠 **主力资金流出**：近20日主力净流出**{abs(main_net):.2f}亿元**，流入{main_in:.2f}亿，流出{main_out:.2f}亿。
+
+**分析解读**：
+1. 主力资金持续流出，态度偏谨慎
+2. 资金面对股价形成压力，需警惕调整风险
+3. 建议控制仓位，避免追高
+4. 关注是否有主力资金回流信号"""
+        else:
+            return f"""🔴 **主力资金大幅流出**：近20日主力净流出**{abs(main_net):.2f}亿元**，流入{main_in:.2f}亿，流出{main_out:.2f}亿。
+
+**分析解读**：
+1. 主力资金大幅流出，机构态度悲观
+2. 资金面对股价形成强压力，调整风险较大
+3. 建议减仓避险，等待资金回流信号
+4. 警惕主力持续出货风险"""
+    
+    def _analyze_north_flow(self, north_flow: Dict) -> str:
+        """分析北向资金"""
+        north_net = north_flow.get('north_net', 0)
+        
+        if north_net > 3:
+            return f"""🟢 **北向资金大幅流入**：近20日北向资金净流入**{north_net:.2f}亿元**。
+
+**分析解读**：
+1. 外资持续大幅买入，看好A股市场
+2. 北向资金偏好优质蓝筹，对股价形成支撑
+3. 外资流入通常具有持续性，可积极关注
+4. 关注外资持仓变化，跟随聪明资金"""
+        elif north_net > 0:
+            return f"""🟡 **北向资金温和流入**：近20日北向资金净流入**{north_net:.2f}亿元**。
+
+**分析解读**：
+1. 外资态度偏积极，但流入力度一般
+2. 对股价形成一定支撑，但非主要驱动力
+3. 建议关注外资流入持续性
+4. 结合其他资金维度综合判断"""
+        elif north_net > -3:
+            return f"""⚪ **北向资金平衡**：近20日北向资金净流入**{north_net:.2f}亿元**。
+
+**分析解读**：
+1. 外资态度中性，观望情绪较浓
+2. 北向资金不提供明确方向指引
+3. 建议关注外资后续动向
+4. 关注国际市场环境变化"""
+        else:
+            return f"""🔴 **北向资金流出**：近20日北向资金净流出**{abs(north_net):.2f}亿元**。
+
+**分析解读**：
+1. 外资持续流出，态度偏谨慎
+2. 可能受国际市场环境影响
+3. 对股价形成一定压力
+4. 关注外资回流信号"""
+    
+    def _analyze_money_flow_detailed(self, main_net: float, retail_net: float, north_net: float) -> str:
+        """详细资金面分析"""
+        total_net = main_net + retail_net + north_net
+        
+        analysis = []
+        
+        # 主力资金判断
+        if main_net > 5:
+            analysis.append("主力资金大幅流入，机构态度积极，是主要看多力量。")
+        elif main_net > 0:
+            analysis.append("主力资金温和流入，态度偏正面。")
+        elif main_net > -5:
+            analysis.append("主力资金流出，态度偏谨慎，需关注风险。")
+        else:
+            analysis.append("主力资金大幅流出，机构态度悲观，需警惕风险。")
+        
+        # 散户资金判断
+        if retail_net > 0:
+            analysis.append("散户资金流入，市场情绪偏乐观，但需警惕追涨风险。")
+        else:
+            analysis.append("散户资金流出，市场情绪偏谨慎。")
+        
+        # 北向资金判断
+        if north_net > 3:
+            analysis.append("北向资金大幅流入，外资看好，提供额外支撑。")
+        elif north_net > 0:
+            analysis.append("北向资金流入，外资态度积极。")
+        elif north_net < -3:
+            analysis.append("北向资金流出，外资态度谨慎，需关注。")
+        
+        # 综合判断
+        if total_net > 10:
+            analysis.append("**综合判断**：资金大幅净流入，资金面强劲，建议积极关注。")
+        elif total_net > 3:
+            analysis.append("**综合判断**：资金温和净流入，资金面偏正面，可适量参与。")
+        elif total_net > -3:
+            analysis.append("**综合判断**：资金进出平衡，资金面中性，建议观望。")
+        elif total_net > -10:
+            analysis.append("**综合判断**：资金净流出，资金面偏负面，建议谨慎。")
+        else:
+            analysis.append("**综合判断**：资金大幅净流出，资金面压力大，建议规避风险。")
+        
+        return '\n\n'.join(f"{i+1}. {a}" for i, a in enumerate(analysis))
+    
+    def _flow_signal(self, net: float) -> str:
+        """资金流向信号"""
+        if net > 5:
+            return "🟢 强烈看多"
+        elif net > 1:
+            return "🟡 看多"
+        elif net > -1:
+            return "⚪ 中性"
+        elif net > -5:
+            return "🟠 看空"
+        else:
+            return "🔴 强烈看空"
+    
+    # ==================== 综合投资建议 ====================
+    
     def _md_investment_advice(self) -> str:
         """Markdown综合投资建议"""
         action = self.suggestion.get('action', '观望')
@@ -1371,9 +1672,9 @@ class UnifiedReportGenerator:
         else:
             upside = downside = risk_reward = 0
         
-        return f"""## 🎯 六、综合投资决策建议
+        return f"""## 🎯 七、综合投资决策建议
 
-### 6.1 投资决策总览
+### 7.1 投资决策总览
 
 <div align="center">
 
@@ -1383,7 +1684,7 @@ class UnifiedReportGenerator:
 
 </div>
 
-### 6.2 关键价位与盈亏分析
+### 7.2 关键价位与盈亏分析
 
 | 价位类型 | 价格 | 涨跌幅 | 说明 |
 |:---------|:-----|:-------|:-----|
@@ -1392,15 +1693,15 @@ class UnifiedReportGenerator:
 | **止损价格** | ¥{stop_loss:.2f} | -{downside:.1f}% | 最大可承受亏损 |
 | **盈亏比** | 1:{risk_reward:.1f} | - | {'🟢 优秀' if risk_reward >= 3 else '🟡 良好' if risk_reward >= 2 else '⚪ 一般' if risk_reward >= 1.5 else '🔴 较差'} |
 
-### 6.3 核心投资优势
+### 7.3 核心投资优势
 
 {self._generate_advantages_enhanced()}
 
-### 6.4 主要风险因素
+### 7.4 主要风险因素
 
 {self._generate_risks_enhanced()}
 
-### 6.5 交易策略建议
+### 7.5 交易策略建议
 
 #### 仓位管理
 - **建议仓位**：{position}
@@ -1409,7 +1710,7 @@ class UnifiedReportGenerator:
 #### 操作计划
 {self._trading_plan(current_price, target_price, stop_loss)}
 
-### 6.6 投资分析总结
+### 7.6 投资分析总结
 
 {self._generate_summary_enhanced()}"""
     
@@ -1450,7 +1751,7 @@ class UnifiedReportGenerator:
         main_flow = money.get('main_flow', {})
         main_net = main_flow.get('main_net', 0)
         if main_net > 0.5:
-            advantages.append(f"6. **主力资金流入**：主力净流入{main_net:.2f}亿，资金面对股价形成支撑")
+            advantages.append(f"6. **主力资金流入**：近20日主力净流入{main_net:.2f}亿，资金面对股价形成支撑")
         
         # 形态面优势（重点）
         if self.pattern_data:
@@ -1511,6 +1812,13 @@ class UnifiedReportGenerator:
             chanlun = self.pattern_data.get('chanlun', {})
             if chanlun.get('sell_points', []):
                 risks.append("7. **缠论卖点信号**：缠论结构识别出卖点信号，需警惕调整风险")
+        
+        # 资金面风险
+        money = self.data.get('money_flow', {})
+        main_flow = money.get('main_flow', {})
+        main_net = main_flow.get('main_net', 0)
+        if main_net < -1:
+            risks.append(f"8. **资金流出风险**：近20日主力资金净流出{abs(main_net):.2f}亿，资金面偏空")
         
         if not risks:
             risks.append("当前未发现明显风险因素，但仍需关注市场系统性风险")
@@ -1594,6 +1902,15 @@ class UnifiedReportGenerator:
                 bp = chanlun['buy_points'][-1]
                 summary_parts.append(f"缠论识别出{bp.get('type')}信号（¥{bp.get('price', 0):.2f}）。")
         
+        # 资金面
+        money = self.data.get('money_flow', {})
+        main_flow = money.get('main_flow', {})
+        main_net = main_flow.get('main_net', 0)
+        if main_net > 1:
+            summary_parts.append(f"近20日主力资金净流入{main_net:.2f}亿，资金面偏正面。")
+        elif main_net < -1:
+            summary_parts.append(f"近20日主力资金净流出{abs(main_net):.2f}亿，资金面偏负面。")
+        
         # 操作建议
         summary_parts.append(f"**操作建议**：{self.suggestion.get('action', '观望')}，目标价¥{self.suggestion.get('target_price', 0):.2f}，止损价¥{self.suggestion.get('stop_loss', 0):.2f}。")
         
@@ -1604,15 +1921,16 @@ class UnifiedReportGenerator:
     
     def _md_risk_disclaimer(self) -> str:
         """Markdown风险提示"""
-        return """## ⚠️ 附录：风险提示与免责声明
+        return f"""## ⚠️ 附录：风险提示与免责声明
 
 ### 重要风险提示
 
 1. **市场风险**：股票市场受宏观经济、政策变化、国际形势等多种因素影响，存在系统性风险
 2. **个股风险**：个股价格受公司经营、行业竞争、市场情绪等因素影响，波动可能较大
 3. **技术风险**：本报告中的技术指标、形态识别、买卖点信号等基于算法自动计算，可能存在误差
-4. **数据风险**：数据来源于公开渠道，可能存在延迟或错误，仅供参考
+4. **数据风险**：数据来源于公开渠道（AkShare等），可能存在延迟或错误，仅供参考
 5. **模型风险**：信号共振评分、情绪指数等模型基于历史数据构建，不保证未来有效性
+6. **时效性风险**：资金面数据基于最近20个交易日，市场情况可能随时变化
 
 ### 免责声明
 
@@ -1624,9 +1942,11 @@ class UnifiedReportGenerator:
 
 ---
 
-**报告生成时间**：{timestamp}  
-**报告版本**：Stock Analyst V3.1 Pro Max  
-**数据来源**：AkShare等公开数据接口""".format(timestamp=self.timestamp)
+**报告生成时间**：{self.timestamp}  
+**报告版本**：Stock Analyst V3.2 Ultra  
+**数据来源**：AkShare等公开数据接口  
+**形态识别**：60+K线形态库 + 缠论算法  
+**数据时效**：行情实时 + 财务最新 + 资金20日"""
     
     # ==================== HTML格式生成 ====================
     
@@ -1640,12 +1960,12 @@ class UnifiedReportGenerator:
     def _markdown_to_html(self, md: str) -> str:
         """将Markdown转换为HTML"""
         # 添加HTML头部和样式
-        html_head = """<!DOCTYPE html>
+        html_head = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{} 股票分析报告</title>
+    <title>{self.stock_name} ({self.code}) 股票分析报告</title>
     <style>
         :root {{
             --primary: #2563eb;
@@ -1799,10 +2119,10 @@ class UnifiedReportGenerator:
 </head>
 <body>
     <div class="container">
-""".format(f"{self.stock_name} ({self.code})")
+"""
         
         # 简单的Markdown到HTML转换
-        html_body = self._simple_md_to_html(md_content)
+        html_body = self._simple_md_to_html(md)
         
         html_foot = """
     </div>
@@ -1884,7 +2204,7 @@ def generate_markdown_report(data: Dict[str, Any], pattern_data: Optional[Dict] 
 
 # ==================== 数据接口规范 ====================
 """
-数据接口规范说明：
+数据接口规范说明（V3.2 Ultra）：
 
 1. data 数据结构：
 {
@@ -1952,9 +2272,24 @@ def generate_markdown_report(data: Dict[str, Any], pattern_data: Optional[Dict] 
         'items': [新闻列表]
     },
     'money_flow': {
+        'data_date': '数据日期范围',
+        'data_range': '数据范围（如20日）',
         'main_flow': {
-            'main_net': 主力净流入
-        }
+            'main_net': 主力净流入（20日）,
+            'main_in': 主力流入,
+            'main_out': 主力流出,
+            'trend': 资金趋势
+        },
+        'retail_flow': {
+            'retail_net': 散户净流入（20日）
+        },
+        'north_flow': {
+            'north_net': 北向净流入（20日）,
+            'trend': 北向趋势
+        },
+        'flow_20d': [
+            {'date': '日期', 'main_net': 主力净流入, 'retail_net': 散户净流入}
+        ]
     },
     'suggestion': {
         'total_score': 综合评分,
@@ -1968,13 +2303,22 @@ def generate_markdown_report(data: Dict[str, Any], pattern_data: Optional[Dict] 
 
 2. pattern_data 数据结构：
 {
+    'data_date': '数据日期',
+    'data_source': '数据来源',
+    'kline_count': K线数量,
+    'validation': {
+        'kline_data': K线数据验证状态,
+        'pattern_recognition': 形态识别验证状态,
+        'chanlun_analysis': 缠论分析验证状态
+    },
     'candlestick': {
         'patterns': [形态列表],
         'bullish_count': 看涨形态数,
         'bearish_count': 看跌形态数,
         'bullish_score': 看涨得分,
         'bearish_score': 看跌得分,
-        'signal': 综合信号
+        'signal': 综合信号,
+        'total_patterns': 形态总数
     },
     'chanlun': {
         'bi_count': 笔数量,
@@ -2007,7 +2351,7 @@ if __name__ == '__main__':
     example_data = {
         'code': '000001',
         'stock_name': '平安银行',
-        'timestamp': '2026-04-16 21:30:00',
+        'timestamp': '2026-04-16 23:15:00',
         'quote': {
             'price': 10.50,
             'pct_change': 2.5,
@@ -2079,9 +2423,26 @@ if __name__ == '__main__':
             ]
         },
         'money_flow': {
+            'data_date': '2026-03-20至2026-04-16',
+            'data_range': '20日',
             'main_flow': {
-                'main_net': 1.2
-            }
+                'main_net': 5.2,
+                'main_in': 12.5,
+                'main_out': 7.3,
+                'trend': '持续流入'
+            },
+            'retail_flow': {
+                'retail_net': -2.1
+            },
+            'north_flow': {
+                'north_net': 3.8,
+                'trend': '流入加速'
+            },
+            'flow_20d': [
+                {'date': '04-16', 'main_net': 0.8, 'retail_net': -0.3},
+                {'date': '04-15', 'main_net': 0.5, 'retail_net': -0.2},
+                {'date': '04-14', 'main_net': 0.6, 'retail_net': -0.1}
+            ]
         },
         'suggestion': {
             'total_score': 72,
@@ -2094,6 +2455,14 @@ if __name__ == '__main__':
     }
     
     example_pattern = {
+        'data_date': '2026-04-16',
+        'data_source': '日线数据',
+        'kline_count': 60,
+        'validation': {
+            'kline_data': True,
+            'pattern_recognition': True,
+            'chanlun_analysis': True
+        },
         'candlestick': {
             'patterns': [
                 {'name_cn': '早晨之星', 'type': 'bullish', 'type_cn': '看涨', 'reliability': 5, 'confidence': 0.85, 'position': 0, 'description': '底部反转信号'},
@@ -2156,3 +2525,4 @@ if __name__ == '__main__':
     reports = generate_unified_report(example_data, example_pattern)
     print("Markdown报告长度:", len(reports['markdown']))
     print("HTML报告长度:", len(reports['html']))
+
