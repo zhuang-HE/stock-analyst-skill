@@ -1,0 +1,143 @@
+# -*- coding: utf-8 -*-
+"""
+GitHub Actions 工作流 - 每日股票分析
+定时执行股票分析并推送结果
+
+触发方式：
+1. 定时触发（每天 15:30 UTC+8，收盘后）
+2. 手动触发（workflow_dispatch）
+"""
+
+name: Daily Stock Analysis
+
+on:
+  # 定时触发 - 每天北京时间 15:30（UTC 07:30）
+  schedule:
+    - cron: '30 7 * * 1-5'  # 工作日触发
+  
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      stock_list:
+        description: '股票列表（逗号分隔，如：000001,600519,300750）'
+        required: false
+        default: ''
+      analysis_type:
+        description: '分析类型'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - quick
+          - market_only
+
+env:
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. 检出代码
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    # 2. 设置 Python
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    # 3. 缓存依赖
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    # 4. 安装依赖
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    # 5. 执行分析
+    - name: Run stock analysis
+      id: analysis
+      run: |
+        # 设置环境变量
+        export ANALYSIS_DATE=$(date +%Y-%m-%d)
+        export STOCK_LIST="${{ github.event.inputs.stock_list || secrets.STOCK_LIST }}"
+        
+        # 执行分析脚本
+        python scripts/batch_analyze.py \
+          --stocks "$STOCK_LIST" \
+          --output-dir ./reports \
+          --type "${{ github.event.inputs.analysis_type || 'full' }}"
+      
+      env:
+        # 可选：配置通知渠道
+        WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        EMAIL_SMTP: ${{ secrets.EMAIL_SMTP }}
+        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+    
+    # 6. 上传报告
+    - name: Upload analysis reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: stock-analysis-reports-${{ github.run_id }}
+        path: ./reports/
+        retention-days: 30
+    
+    # 7. 推送通知（企业微信）
+    - name: Send WeCom notification
+      if: ${{ secrets.WECOM_WEBHOOK != '' }}
+      run: |
+        curl -X POST "${{ secrets.WECOM_WEBHOOK }}" \
+          -H "Content-Type: application/json" \
+          -d @./reports/notification.json
+      continue-on-error: true
+    
+    # 8. 推送通知（飞书）
+    - name: Send Feishu notification
+      if: ${{ secrets.FEISHU_WEBHOOK != '' }}
+      run: |
+        curl -X POST "${{ secrets.FEISHU_WEBHOOK }}" \
+          -H "Content-Type: application/json" \
+          -d @./reports/notification.json
+      continue-on-error: true
+    
+    # 9. 推送通知（Discord）
+    - name: Send Discord notification
+      if: ${{ secrets.DISCORD_WEBHOOK != '' }}
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+          -H "Content-Type: application/json" \
+          -d @./reports/notification_discord.json
+      continue-on-error: true
+    
+    # 10. 提交报告到仓库（可选）
+    - name: Commit reports to repository
+      if: ${{ github.event_name == 'schedule' }}
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # 创建报告目录
+        mkdir -p reports/history/$(date +%Y/%m)
+        
+        # 复制报告
+        cp ./reports/*_$(date +%Y-%m-%d).md reports/history/$(date +%Y/%m)/ 2>/dev/null || true
+        cp ./reports/market_regime_$(date +%Y-%m-%d).md reports/history/$(date +%Y/%m)/ 2>/dev/null || true
+        
+        # 提交
+        git add reports/
+        git diff --staged --quiet || git commit -m "📊 Daily stock analysis report - $(date +%Y-%m-%d)"
+        git push
+      continue-on-error: true
