@@ -2321,7 +2321,11 @@ class UnifiedReportGenerator:
             
             bullish = candlestick.get('bullish_count', 0)
             bearish = candlestick.get('bearish_count', 0)
-            res_score = resonance.get('total_score', 0)
+            # 处理ResonanceResult对象或字典
+            if hasattr(resonance, 'total_score'):
+                res_score = resonance.total_score
+            else:
+                res_score = resonance.get('total_score', 0)
             
             buy_points = chanlun.get('buy_points', [])
             sell_points = chanlun.get('sell_points', [])
