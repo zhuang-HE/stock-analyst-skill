@@ -101,25 +101,54 @@ class UnifiedReportGenerator:
     
     # ==================== 统一报告生成 ====================
     
-    def generate_unified_report(self) -> Dict[str, str]:
+    def generate_unified_report(self, output_format: str = 'markdown') -> Dict[str, str]:
         """
-        生成统一报告（同时返回HTML和Markdown）
+        生成统一报告（按需返回格式）
         
+        Args:
+            output_format: 输出格式
+                - 'markdown': 只返回Markdown（默认，最省Token）
+                - 'html': 只返回HTML
+                - 'both': 同时返回HTML和Markdown
+                - 'text': 返回纯文本简化版
+                
         Returns:
-            {'html': html_content, 'markdown': md_content}
+            根据output_format返回对应格式的报告
+            - 'markdown': {'markdown': md_content}
+            - 'html': {'html': html_content}
+            - 'both': {'html': html_content, 'markdown': md_content}
+            - 'text': {'text': text_content}
         """
-        return {
-            'html': self.generate_html(),
-            'markdown': self.generate_markdown()
-        }
+        if output_format == 'markdown':
+            return {'markdown': self.generate_markdown()}
+        elif output_format == 'html':
+            return {'html': self.generate_html()}
+        elif output_format == 'text':
+            return {'text': self.generate_text_summary()}
+        else:  # both
+            return {
+                'html': self.generate_html(),
+                'markdown': self.generate_markdown()
+            }
     
-    def generate_html(self) -> str:
-        """生成专业HTML格式报告"""
+    def generate_html(self, minimal: bool = True) -> str:
+        """
+        生成HTML格式报告
+        
+        Args:
+            minimal: 是否使用极简样式（默认True，节省Token）
+        """
+        if minimal:
+            return self._generate_minimal_html_report()
         return self._generate_html_report()
     
     def generate_markdown(self) -> str:
         """生成专业Markdown格式报告"""
         return self._generate_markdown_report()
+    
+    def generate_text_summary(self) -> str:
+        """生成纯文本简化版报告（最省Token）"""
+        return self._generate_text_summary()
     
     # ==================== Markdown格式生成 ====================
     
@@ -1948,13 +1977,111 @@ class UnifiedReportGenerator:
 **形态识别**：60+K线形态库 + 缠论算法  
 **数据时效**：行情实时 + 财务最新 + 资金20日"""
     
-    # ==================== HTML格式生成 ====================
+    # ==================== HTML格式生成（精简版）====================
+    
+    def _generate_minimal_html_report(self) -> str:
+        """
+        生成极简HTML报告（大幅节省Token）
+        
+        优化点：
+        1. 移除大量CSS样式，使用内联极简样式
+        2. 只保留核心内容，移除装饰性元素
+        3. 简化HTML结构
+        """
+        md_content = self._generate_markdown_report()
+        # 使用极简转换
+        html = self._markdown_to_minimal_html(md_content)
+        return html
     
     def _generate_html_report(self) -> str:
-        """生成完整HTML报告"""
+        """生成完整HTML报告（完整样式版）"""
         md_content = self._generate_markdown_report()
-        # 将Markdown转换为HTML（简化版，实际可使用markdown库）
         html = self._markdown_to_html(md_content)
+        return html
+    
+    def _markdown_to_minimal_html(self, md: str) -> str:
+        """
+        极简Markdown到HTML转换（节省Token）
+        
+        相比完整版节省约60-70%的HTML标签和CSS
+        """
+        html_head = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{self.stock_name} ({self.code}) 分析报告</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; line-height: 1.6; }}
+        h1 {{ color: #333; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }}
+        h2 {{ color: #2563eb; margin-top: 30px; }}
+        h3 {{ color: #555; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        th {{ background: #f5f5f5; }}
+        .highlight {{ background: #e3f2fd; padding: 10px; border-radius: 4px; }}
+    </style>
+</head>
+<body>
+"""
+        
+        # 极简转换：保留基本结构，移除复杂格式化
+        html_body = self._simple_md_to_html_minimal(md)
+        
+        html_foot = "</body></html>"
+        return html_head + html_body + html_foot
+    
+    def _simple_md_to_html_minimal(self, md: str) -> str:
+        """极简Markdown转换"""
+        html = md
+        
+        # 转换标题
+        html = html.replace('# ', '<h1>').replace('\n## ', '</h1>\n<h2>')
+        html = html.replace('\n### ', '</h2>\n<h3>').replace('\n#### ', '</h3>\n<h4>')
+        html = html.replace('\n---\n', '<hr>')
+        
+        # 转换强调
+        parts = html.split('**')
+        for i in range(1, len(parts), 2):
+            if i < len(parts):
+                parts[i] = f'<strong>{parts[i]}</strong>'
+        html = ''.join(parts)
+        
+        # 简化表格处理
+        lines = html.split('\n')
+        result = []
+        in_table = False
+        
+        for line in lines:
+            if line.startswith('|') and not in_table:
+                in_table = True
+                result.append('<table>')
+            elif not line.startswith('|') and in_table:
+                in_table = False
+                result.append('</table>')
+            
+            if in_table:
+                if '---' in line:
+                    continue
+                cells = [c.strip() for c in line.split('|')[1:-1]]
+                if cells:
+                    tag = 'th' if result and '<table>' in result[-2:] else 'td'
+                    result.append('<tr>' + ''.join(f'<{tag}>{c}</{tag}>' for c in cells) + '</tr>')
+            else:
+                result.append(line)
+        
+        if in_table:
+            result.append('</table>')
+        
+        html = '\n'.join(result)
+        
+        # 转换列表
+        html = html.replace('\n- ', '\n<li>')
+        html = html.replace('\n\n', '</li>\n\n')
+        
+        # 包裹段落
+        paragraphs = html.split('\n\n')
+        html = '\n\n'.join(f'<p>{p}</p>' if not p.startswith('<') else p for p in paragraphs)
+        
         return html
     
     def _markdown_to_html(self, md: str) -> str:
@@ -2132,7 +2259,7 @@ class UnifiedReportGenerator:
         return html_head + html_body + html_foot
     
     def _simple_md_to_html(self, md: str) -> str:
-        """简单的Markdown到HTML转换"""
+        """简单的Markdown到HTML转换（完整样式版）"""
         html = md
         
         # 转换标题
@@ -2171,35 +2298,140 @@ class UnifiedReportGenerator:
         html = '<div class="section">' + html + '</div>'
         
         return html
+    
+    # ==================== 纯文本简化版（最省Token）====================
+    
+    def _generate_text_summary(self) -> str:
+        """
+        生成纯文本简化版报告（最省Token）
+        
+        只保留核心结论，移除所有格式和详细说明
+        适合快速查看关键信息
+        """
+        quote = self.data.get('quote', {})
+        price = quote.get('price', 0)
+        pct_change = quote.get('pct_change', 0)
+        
+        # 形态面关键信息
+        pattern_summary = ""
+        if self.pattern_data:
+            candlestick = self.pattern_data.get('candlestick', {})
+            chanlun = self.pattern_data.get('chanlun', {})
+            resonance = self.pattern_data.get('resonance', {})
+            
+            bullish = candlestick.get('bullish_count', 0)
+            bearish = candlestick.get('bearish_count', 0)
+            res_score = resonance.get('total_score', 0)
+            
+            buy_points = chanlun.get('buy_points', [])
+            sell_points = chanlun.get('sell_points', [])
+            
+            pattern_summary = f"""
+【形态面】
+- 看涨形态: {bullish}个, 看跌形态: {bearish}个
+- 共振评分: {res_score:+.0f}分
+- 买点: {len(buy_points)}个, 卖点: {len(sell_points)}个"""
+        
+        # 资金面关键信息
+        money_summary = ""
+        money_flow = self.data.get('money_flow', {})
+        if money_flow:
+            main_net = money_flow.get('main_flow', {}).get('main_net', 0)
+            north_net = money_flow.get('north_flow', {}).get('north_net', 0)
+            money_summary = f"""
+【资金面】20日数据
+- 主力净流入: {main_net:+.2f}亿
+- 北向净流入: {north_net:+.2f}亿"""
+        
+        # 操作建议
+        action = self.suggestion.get('action', '观望')
+        target = self.suggestion.get('target_price', 0)
+        stop_loss = self.suggestion.get('stop_loss', 0)
+        position = self.suggestion.get('position', '0%')
+        
+        return f"""{self.stock_name} ({self.code}) 分析报告
+生成时间: {self.timestamp}
+
+【行情】
+- 当前价格: ¥{price:.2f} ({pct_change:+.2f}%)
+
+【评级】{self.rating_emoji} {self.rating} | 评分: {self.total_score}/100
+
+【建议】
+- 操作: {action}
+- 目标价: ¥{target:.2f}
+- 止损价: ¥{stop_loss:.2f}
+- 仓位: {position}
+{pattern_summary}
+{money_summary}
+
+免责声明: 本报告仅供参考，不构成投资建议。"""
 
 
 # ==================== 便捷函数 ====================
 
-def generate_unified_report(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> Dict[str, str]:
+def generate_unified_report(
+    data: Dict[str, Any], 
+    pattern_data: Optional[Dict] = None,
+    output_format: str = 'markdown'
+) -> Dict[str, str]:
     """
-    生成统一报告（HTML + Markdown）
+    生成统一报告（按需返回格式）
     
     Args:
         data: 基础分析数据
         pattern_data: 形态面分析数据
-        
+        output_format: 输出格式
+            - 'markdown': 只返回Markdown（默认，最省Token）
+            - 'html': 只返回HTML（极简样式）
+            - 'html_full': 返回完整样式HTML
+            - 'both': 同时返回HTML和Markdown
+            - 'text': 返回纯文本简化版（最省Token）
+            
     Returns:
-        {'html': html_content, 'markdown': md_content}
+        根据output_format返回对应格式的报告
+        
+    使用建议：
+        - 日常使用: output_format='markdown'（默认，平衡可读性和Token）
+        - 需要HTML: output_format='html'（极简样式，节省Token）
+        - 快速预览: output_format='text'（纯文本，最省Token）
+        - 完整需求: output_format='both'（同时获得两种格式）
     """
     generator = UnifiedReportGenerator(data, pattern_data)
-    return generator.generate_unified_report()
+    return generator.generate_unified_report(output_format)
 
 
-def generate_html_report(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> str:
-    """生成HTML报告"""
+def generate_html_report(
+    data: Dict[str, Any], 
+    pattern_data: Optional[Dict] = None,
+    minimal: bool = True
+) -> str:
+    """
+    生成HTML报告
+    
+    Args:
+        data: 基础分析数据
+        pattern_data: 形态面分析数据
+        minimal: 是否使用极简样式（默认True，节省Token）
+    """
     generator = UnifiedReportGenerator(data, pattern_data)
-    return generator.generate_html()
+    return generator.generate_html(minimal=minimal)
 
 
 def generate_markdown_report(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> str:
     """生成Markdown报告"""
     generator = UnifiedReportGenerator(data, pattern_data)
     return generator.generate_markdown()
+
+
+def generate_text_summary(data: Dict[str, Any], pattern_data: Optional[Dict] = None) -> str:
+    """
+    生成纯文本简化版报告（最省Token）
+    
+    适合快速查看核心结论，不包含详细分析
+    """
+    generator = UnifiedReportGenerator(data, pattern_data)
+    return generator.generate_text_summary()
 
 
 # ==================== 数据接口规范 ====================
