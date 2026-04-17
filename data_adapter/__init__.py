@@ -1,26 +1,38 @@
 # -*- coding: utf-8 -*-
-"""
-Stock Analyst 数据适配层
+""" 
+Stock Analyst 数据适配层 V2
 
-将多种数据源的输出统一转换为 stock-analyst 需要的格式
-支持数据源：
-- finance-data-retrieval (AkShare) - 主要数据源
-- 备用数据源1: Tushare (待接入)
-- 备用数据源2: Baostock (待接入)
-- 备用数据源3: 本地缓存 (离线使用)
+增强能力（借鉴 OpenClaw 架构）：
+- 指数退避重试 + 熔断器模式
+- 真实多数据源：AkShare / Baostock / 新浪财经 / 本地缓存
+- 数据新鲜度分级缓存
+- 降级事件追踪与报告
 """
 
 from .adapter import DataAdapter, get_stock_analysis_data
-from .sources import DataSource, AkShareSource, TushareSource, BaostockSource, LocalCacheSource
-from .fallback import FallbackManager
+from .sources import (
+    DataSource, AkShareSource, BaostockSource,
+    SinaFinanceSource, LocalCacheSource
+)
+from .fallback import (
+    FallbackManagerV2, RetryConfig, CircuitBreakerConfig,
+    SourceStatus, create_fallback_manager
+)
 
 __all__ = [
+    # 核心适配
     'DataAdapter',
     'get_stock_analysis_data',
+    # 数据源
     'DataSource',
     'AkShareSource',
-    'TushareSource', 
     'BaostockSource',
+    'SinaFinanceSource',
     'LocalCacheSource',
-    'FallbackManager'
+    # 降级管理
+    'FallbackManagerV2',
+    'RetryConfig',
+    'CircuitBreakerConfig',
+    'SourceStatus',
+    'create_fallback_manager',
 ]
