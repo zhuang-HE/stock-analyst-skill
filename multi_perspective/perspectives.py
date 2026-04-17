@@ -746,19 +746,20 @@ class RiskPerspective(BasePerspective):
             risk_level = "low"
             risk_label = "低风险"
 
-        # 风控派的 opinion 基于风险等级反向映射
+        # 风控派同时需要 reasons（用于 PerspectiveResult）和 warnings（用于 RiskAssessment）
+        perspective_reasons: List[str] = []
         if risk_level == "high":
             opinion = Opinion.BEARISH
             confidence = 0.8
-            reasons.append("风险过高，建议观望或减仓")
+            perspective_reasons.append("风险过高，建议观望或减仓")
         elif risk_level == "medium":
             opinion = Opinion.NEUTRAL
             confidence = 0.5
-            reasons.append("风险适中，可轻仓参与")
+            perspective_reasons.append("风险适中，可轻仓参与")
         else:
             opinion = Opinion.BULLISH
             confidence = 0.6
-            reasons.append("风险可控，可正常操作")
+            perspective_reasons.append("风险可控，可正常操作")
 
         if not warnings:
             warnings.append("暂无显著风险信号")
@@ -766,7 +767,7 @@ class RiskPerspective(BasePerspective):
         perspective_result = PerspectiveResult(
             perspective_name=self.name, perspective_icon=self.icon,
             opinion=opinion, confidence=confidence, weight=self.weight,
-            reasons=reasons, details={"risk_score": risk_score},
+            reasons=perspective_reasons, details={"risk_score": risk_score},
         )
 
         risk_assessment = RiskAssessment(
