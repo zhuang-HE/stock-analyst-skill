@@ -27,8 +27,18 @@ class DataSource(Enum):
 class DataProvider:
     """统一数据提供者 - 支持多源降级"""
     
-    # Tushare 配置 - 从环境变量或默认值获取 Token
-    TUSHARE_TOKEN = '29bbbd6ee9f37ae26110e38b06a207f6fc4551571925fde3ce02c4d6'
+    # Tushare 配置 - 从环境变量获取 Token，避免硬编码
+    @staticmethod
+    def _get_tushare_token() -> str:
+        """安全获取 Tushare Token（优先环境变量）"""
+        import os
+        # 优先从环境变量读取
+        token = os.environ.get('TUSHARE_TOKEN', '')
+        if token:
+            return token
+        # 开发环境备用（生产环境应始终使用环境变量）
+        return os.environ.get('TUSHARE_TOKEN_FALLBACK', '')
+    
     TUSHARE_ID = '1093699'
     
     def __init__(self):
@@ -47,7 +57,10 @@ class DataProvider:
         if self._pro_api is None:
             try:
                 import tushare as ts
-                ts.set_token(self.TUSHARE_TOKEN)
+                token = self._get_tushare_token()
+                if not token:
+                    raise ValueError("TUSHARE_TOKEN 环境变量未设置")
+                ts.set_token(token)
                 self._pro_api = ts.pro_api()
             except Exception as e:
                 self.last_error['tushare_init'] = str(e)
