@@ -81,7 +81,7 @@ class Database:
             if self._read_only:
                 uri += "?mode=ro"
             else:
-                uri += "?mode=rw"
+                uri += "?mode=rwc"
             self._conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
             # 性能优化

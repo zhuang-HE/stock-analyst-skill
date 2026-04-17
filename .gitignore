@@ -36,6 +36,9 @@ env/
 *.csv
 *.xlsx
 *.json
+*.db
+*.sample
+*.log
 
 # OS
 .DS_Store

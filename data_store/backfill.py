@@ -31,7 +31,10 @@ from typing import List, Optional
 
 import baostock as bs
 
-from database import Database
+try:
+    from .database import Database
+except ImportError:
+    from database import Database
 
 
 # ═══════════════════════════════════════════════════════════════

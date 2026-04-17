@@ -7,10 +7,11 @@
 4. 详细的降级日志与指标
 
 支持的数据源：
-1. AkShare (finance-data-retrieval) - 主数据源
-2. Tushare - 备用1
-3. Baostock - 备用2
-4. 本地缓存 - 离线兜底
+1. LocalDB - 本地SQLite数据库（最高优先级，零延迟）
+2. Tushare - 高质量数据源（需 token，财报/龙虎榜最强）
+3. AkShare (finance-data-retrieval) - 免费主数据源
+4. Baostock - 免费备用
+5. LocalCache - 离线兜底
 """
 
 import logging
@@ -490,13 +491,41 @@ class FallbackManagerV2:
 
 
 def create_fallback_manager() -> FallbackManagerV2:
-    """创建配置好的备用管理器（带真实数据源）"""
-    from .sources import AkShareSource, LocalCacheSource
+    """创建配置好的备用管理器（带真实数据源）
+
+    降级链路（优先级从高到低）：
+    1. LocalDB - 本地SQLite数据库（零延迟，数据最可靠）
+    2. Tushare - 高质量数据源（需 token，财报/龙虎榜最强）
+    3. AkShare - 免费主数据源（全面但偶尔超时）
+    4. Baostock - 免费备用（稳定但字段有限）
+    5. LocalCache - 离线兜底（过期缓存）
+    """
+    from .sources import (
+        AkShareSource, TushareSource, BaostockSource,
+        LocalDBSource, LocalCacheSource,
+    )
 
     manager = FallbackManagerV2()
 
-    # 主数据源：AkShare
-    manager.register_source('akshare', AkShareSource(), priority=0)
+    # 本地数据库（最高优先级）
+    local_db = LocalDBSource()
+    if local_db.is_available:
+        manager.register_source('local_db', local_db, priority=0)
+
+    # Tushare（高质量数据源）
+    tushare = TushareSource()
+    if tushare.is_available:
+        manager.register_source('tushare', tushare, priority=1)
+
+    # AkShare（免费主数据源）
+    akshare = AkShareSource()
+    if akshare.is_available:
+        manager.register_source('akshare', akshare, priority=2)
+
+    # Baostock（免费备用）
+    baostock = BaostockSource()
+    if baostock.is_available:
+        manager.register_source('baostock', baostock, priority=3)
 
     # 本地缓存兜底
     manager.register_source('local_cache', LocalCacheSource(), priority=999)

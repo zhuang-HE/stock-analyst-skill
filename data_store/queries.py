@@ -21,7 +21,10 @@ from typing import Optional
 
 import pandas as pd
 
-from database import Database
+try:
+    from .database import Database
+except ImportError:
+    from database import Database
 
 
 class StockQueries:

@@ -20,7 +20,10 @@ A股市场数据库 — 增量更新脚本
     # 更新融资融券
     python updater.py --margin
 
-    # 全量更新（日K + 复权 + 北向 + 融资）
+    # 只计算技术指标
+    python updater.py --tech-only
+
+    # 全量更新（日K + 复权 + 北向 + 融资 + 技术指标）
     python updater.py --all
 """
 
@@ -33,15 +36,28 @@ from typing import Optional
 
 import baostock as bs
 
-from database import Database
-from backfill import (
-    BaoStockSession,
-    fetch_stock_daily,
-    fetch_adj_factor,
-    fetch_index_daily,
-    MAJOR_INDICES,
-    _safe_float,
-)
+try:
+    from .database import Database
+except ImportError:
+    from database import Database
+try:
+    from .backfill import (
+        BaoStockSession,
+        fetch_stock_daily,
+        fetch_adj_factor,
+        fetch_index_daily,
+        MAJOR_INDICES,
+        _safe_float,
+    )
+except ImportError:
+    from backfill import (
+        BaoStockSession,
+        fetch_stock_daily,
+        fetch_adj_factor,
+        fetch_index_daily,
+        MAJOR_INDICES,
+        _safe_float,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -285,6 +301,62 @@ def update_index_daily(db: Database, trade_date: str) -> int:
     return total
 
 
+def update_tech_indicators(db: Database, trade_date: str) -> int:
+    """
+    增量更新技术指标（只计算当日有新K线数据的股票）。
+
+    技术指标需要历史K线预热，所以会对每只股票全量计算后只入库新行。
+    这是纯本地计算，不依赖外部 API，速度很快。
+    """
+    try:
+        from .tech_calc import calc_and_save
+    except ImportError:
+        from tech_calc import calc_and_save
+
+    # 找出当日有K线数据的股票
+    rows = db.query_all(
+        "SELECT DISTINCT ts_code FROM stock_daily WHERE trade_date = ?",
+        (trade_date,),
+    )
+    codes = [r[0] for r in rows]
+
+    if not codes:
+        print(f"  ⚠ {trade_date} 无K线数据，跳过技术指标")
+        return 0
+
+    print(f"  计算技术指标 {trade_date}，共 {len(codes)} 只股票...")
+
+    total = 0
+    failed = 0
+    start = time.time()
+
+    for i, code in enumerate(codes):
+        try:
+            n = calc_and_save(db, code, force=False)
+            total += n
+        except Exception as e:
+            failed += 1
+            if failed <= 3:
+                print(f"    ✗ {code} 计算失败: {e}")
+
+        if (i + 1) % 200 == 0:
+            elapsed = time.time() - start
+            eta = elapsed / (i + 1) * (len(codes) - i - 1)
+            print(f"    [{i+1}/{len(codes)}] {total} 行, 失败 {failed}, ETA {eta:.0f}s")
+
+    elapsed = time.time() - start
+    db.log_operation(
+        table_name="tech_indicators",
+        action="DELTA",
+        record_count=total,
+        end_date=trade_date,
+        source="local_calc",
+        duration_ms=int(elapsed * 1000),
+    )
+    print(f"  ✓ 技术指标 {total} 行 / 失败 {failed} / 耗时 {elapsed:.1f}s")
+    return total
+
+
 # ═══════════════════════════════════════════════════════════════
 #  主入口
 # ═══════════════════════════════════════════════════════════════
@@ -295,7 +367,9 @@ def main():
     parser.add_argument("--daily-only", action="store_true", help="只更新日K线")
     parser.add_argument("--moneyflow", action="store_true", help="更新北向资金")
     parser.add_argument("--margin", action="store_true", help="更新融资融券")
+    parser.add_argument("--tech-only", action="store_true", help="只计算技术指标")
     parser.add_argument("--all", action="store_true", help="全量更新")
+    parser.add_argument("--skip-tech", action="store_true", help="跳过技术指标计算")
     parser.add_argument("--delay", type=float, default=0.15, help="每只股票间延迟（秒）")
     parser.add_argument("--data-dir", default=None, help="数据目录")
     args = parser.parse_args()
@@ -326,25 +400,31 @@ def main():
         db.close()
         return
 
-    do_daily = True
+    do_daily = not args.tech_only
     do_moneyflow = args.moneyflow or args.all
     do_margin = args.margin or args.all
+    do_tech = args.tech_only or args.all or not args.skip_tech
 
     with BaoStockSession():
         if do_daily:
-            print(f"\n[1/3] 日K线 + 复权因子")
+            print(f"\n[1/4] 日K线 + 复权因子")
             update_daily(db, trade_date, delay=args.delay)
 
-            print(f"\n[2/3] 指数日K线")
+            print(f"\n[2/4] 指数日K线")
             update_index_daily(db, trade_date)
 
         if do_moneyflow:
-            print(f"\n[3/3] 北向资金")
+            print(f"\n[3/4] 北向资金")
             update_moneyflow_hsgt(db, trade_date)
 
         if do_margin:
             print(f"\n[4/4] 融资融券")
             update_margin_detail(db, trade_date)
+
+    # 技术指标（纯本地计算，不需要 BaoStockSession）
+    if do_tech:
+        print(f"\n[技术指标] 预计算")
+        update_tech_indicators(db, trade_date)
 
     stats = db.get_db_stats()
     print(f"\n✅ 更新完成！数据库大小: {stats.get('db_size_mb', 0)} MB")

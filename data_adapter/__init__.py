@@ -11,8 +11,8 @@ Stock Analyst 数据适配层 V2
 
 from .adapter import DataAdapter, get_stock_analysis_data
 from .sources import (
-    DataSource, AkShareSource, BaostockSource,
-    SinaFinanceSource, LocalCacheSource
+    DataSource, AkShareSource, TushareSource, BaostockSource,
+    SinaFinanceSource, LocalCacheSource, LocalDBSource
 )
 from .fallback import (
     FallbackManagerV2, RetryConfig, CircuitBreakerConfig,
@@ -26,9 +26,11 @@ __all__ = [
     # 数据源
     'DataSource',
     'AkShareSource',
+    'TushareSource',
     'BaostockSource',
     'SinaFinanceSource',
     'LocalCacheSource',
+    'LocalDBSource',
     # 降级管理
     'FallbackManagerV2',
     'RetryConfig',
