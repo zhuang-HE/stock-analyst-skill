@@ -43,3 +43,7 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Secrets
+.env
+.tushare_token

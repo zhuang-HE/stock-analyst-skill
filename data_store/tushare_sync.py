@@ -154,6 +154,7 @@ def sync_income(
     start_date: str = "20220101",
     end_date: Optional[str] = None,
     report_type: str = "1",
+    ts_codes: Optional[List[str]] = None,
 ) -> int:
     """
     同步利润表数据。
@@ -162,58 +163,78 @@ def sync_income(
         start_date: 报告期起始 YYYYMMDD
         end_date: 报告期结束，默认今天
         report_type: 1=合并 2=单季
+        ts_codes: 指定股票代码列表（如 ['600519.SH']），为空则按报告期拉全市场
     """
     pro = get_pro_api()
     if end_date is None:
         end_date = datetime.now().strftime("%Y%m%d")
 
     print(f"[Tushare] 同步利润表 {start_date} ~ {end_date}...")
-
-    # 获取有公告的报表期
-    periods = _get_report_periods(start_date, end_date)
     total = 0
 
-    for period in periods:
-        try:
-            df = pro.income(
-                period=period,
-                fields="ts_code,end_date,ann_date,f_ann_date,report_type,"
-                       "total_revenue,revenue,oper_cost,total_profit,"
-                       "n_income,n_income_attr_p,diluted_eps,"
-                       "update_flag"
-            )
-            if df is None or df.empty:
-                continue
+    # 按股票代码逐只拉取（稳定，不需要高积分权限）
+    if ts_codes:
+        for i, ts_code in enumerate(ts_codes):
+            try:
+                df = pro.income(
+                    ts_code=ts_code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    fields="ts_code,end_date,ann_date,f_ann_date,report_type,"
+                           "total_revenue,revenue,oper_cost,total_profit,"
+                           "n_income,n_income_attr_p,diluted_eps,"
+                           "update_flag"
+                )
+                if df is None or df.empty:
+                    print(f"  - {ts_code}: 无数据")
+                    time.sleep(0.15)
+                    continue
 
-            # 过滤报告类型
-            if report_type:
-                df = df[df["report_type"] == report_type]
+                # 过滤报告类型
+                if report_type:
+                    df = df[df["report_type"] == report_type]
 
-            rows = []
-            for _, r in df.iterrows():
-                rows.append({
-                    "ts_code": r["ts_code"],
-                    "end_date": str(r.get("end_date", "")),
-                    "ann_date": str(r.get("ann_date", r.get("f_ann_date", ""))),
-                    "report_type": str(r.get("report_type", "1")),
-                    "revenue": _safe_float(r.get("total_revenue", r.get("revenue", None))),
-                    "operate_cost": _safe_float(r.get("oper_cost", None)),
-                    "total_profit": _safe_float(r.get("total_profit", None)),
-                    "net_profit": _safe_float(r.get("n_income", None)),
-                    "net_profit_attr": _safe_float(r.get("n_income_attr_p", None)),
-                    "diluted_eps": _safe_float(r.get("diluted_eps", None)),
-                })
+                rows = _parse_income_rows(df)
+                if rows:
+                    n = db.upsert_batch("income", rows, conflict_keys=["ts_code", "end_date", "report_type"])
+                    total += n
+                    print(f"  ✓ {ts_code}: {n} 条")
 
-            if rows:
-                n = db.upsert_batch("income", rows, conflict_keys=["ts_code", "end_date", "report_type"])
-                total += n
-                print(f"  ✓ {period}: {n} 条")
+                time.sleep(0.15)  # 每分钟不超过500次
 
-            time.sleep(0.3)  # Tushare 频率限制
+            except Exception as e:
+                print(f"  ✗ {ts_code} 失败: {e}")
+                time.sleep(0.5)
 
-        except Exception as e:
-            print(f"  ✗ {period} 失败: {e}")
-            time.sleep(1)
+    else:
+        # 按报告期拉全市场（需要较高积分权限）
+        periods = _get_report_periods(start_date, end_date)
+        for period in periods:
+            try:
+                df = pro.income(
+                    period=period,
+                    fields="ts_code,end_date,ann_date,f_ann_date,report_type,"
+                           "total_revenue,revenue,oper_cost,total_profit,"
+                           "n_income,n_income_attr_p,diluted_eps,"
+                           "update_flag"
+                )
+                if df is None or df.empty:
+                    continue
+
+                if report_type:
+                    df = df[df["report_type"] == report_type]
+
+                rows = _parse_income_rows(df)
+                if rows:
+                    n = db.upsert_batch("income", rows, conflict_keys=["ts_code", "end_date", "report_type"])
+                    total += n
+                    print(f"  ✓ {period}: {n} 条")
+
+                time.sleep(0.15)
+
+            except Exception as e:
+                print(f"  ✗ {period} 失败: {e}")
+                time.sleep(0.5)
 
     db.log_operation(
         table_name="income",
@@ -232,6 +253,7 @@ def sync_balancesheet(
     start_date: str = "20220101",
     end_date: Optional[str] = None,
     report_type: str = "1",
+    ts_codes: Optional[List[str]] = None,
 ) -> int:
     """同步资产负债表"""
     pro = get_pro_api()
@@ -239,50 +261,67 @@ def sync_balancesheet(
         end_date = datetime.now().strftime("%Y%m%d")
 
     print(f"[Tushare] 同步资产负债表 {start_date} ~ {end_date}...")
-
-    periods = _get_report_periods(start_date, end_date)
     total = 0
 
-    for period in periods:
-        try:
-            df = pro.balancesheet(
-                period=period,
-                fields="ts_code,end_date,ann_date,report_type,"
-                       "total_assets,total_liab,total_hldr_eqy_exc_min_int,"
-                       "monetary_cap,accounts_receiv,inventory,fix_assets"
-            )
-            if df is None or df.empty:
-                continue
+    if ts_codes:
+        # 按股票代码逐只拉取
+        for ts_code in ts_codes:
+            try:
+                df = pro.balancesheet(
+                    ts_code=ts_code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    fields="ts_code,end_date,ann_date,report_type,"
+                           "total_assets,total_liab,total_hldr_eqy_exc_min_int,"
+                           "monetary_cap,accounts_receiv,inventory,fix_assets"
+                )
+                if df is None or df.empty:
+                    print(f"  - {ts_code}: 无数据")
+                    time.sleep(0.15)
+                    continue
 
-            if report_type:
-                df = df[df["report_type"] == report_type]
+                if report_type:
+                    df = df[df["report_type"] == report_type]
 
-            rows = []
-            for _, r in df.iterrows():
-                rows.append({
-                    "ts_code": r["ts_code"],
-                    "end_date": str(r.get("end_date", "")),
-                    "ann_date": str(r.get("ann_date", "")),
-                    "report_type": str(r.get("report_type", "1")),
-                    "total_assets": _safe_float(r.get("total_assets", None)),
-                    "total_liab": _safe_float(r.get("total_liab", None)),
-                    "total_equity": _safe_float(r.get("total_hldr_eqy_exc_min_int", None)),
-                    "money_cap": _safe_float(r.get("monetary_cap", None)),
-                    "accounts_recv": _safe_float(r.get("accounts_receiv", None)),
-                    "inventory": _safe_float(r.get("inventory", None)),
-                    "fixed_assets": _safe_float(r.get("fix_assets", None)),
-                })
+                rows = _parse_balancesheet_rows(df)
+                if rows:
+                    n = db.upsert_batch("balancesheet", rows, conflict_keys=["ts_code", "end_date", "report_type"])
+                    total += n
+                    print(f"  ✓ {ts_code}: {n} 条")
 
-            if rows:
-                n = db.upsert_batch("balancesheet", rows, conflict_keys=["ts_code", "end_date", "report_type"])
-                total += n
-                print(f"  ✓ {period}: {n} 条")
+                time.sleep(0.15)
 
-            time.sleep(0.3)
+            except Exception as e:
+                print(f"  ✗ {ts_code} 失败: {e}")
+                time.sleep(0.5)
+    else:
+        # 按报告期拉全市场
+        periods = _get_report_periods(start_date, end_date)
+        for period in periods:
+            try:
+                df = pro.balancesheet(
+                    period=period,
+                    fields="ts_code,end_date,ann_date,report_type,"
+                           "total_assets,total_liab,total_hldr_eqy_exc_min_int,"
+                           "monetary_cap,accounts_receiv,inventory,fix_assets"
+                )
+                if df is None or df.empty:
+                    continue
 
-        except Exception as e:
-            print(f"  ✗ {period} 失败: {e}")
-            time.sleep(1)
+                if report_type:
+                    df = df[df["report_type"] == report_type]
+
+                rows = _parse_balancesheet_rows(df)
+                if rows:
+                    n = db.upsert_batch("balancesheet", rows, conflict_keys=["ts_code", "end_date", "report_type"])
+                    total += n
+                    print(f"  ✓ {period}: {n} 条")
+
+                time.sleep(0.15)
+
+            except Exception as e:
+                print(f"  ✗ {period} 失败: {e}")
+                time.sleep(0.5)
 
     db.log_operation(
         table_name="balancesheet",
@@ -544,6 +583,45 @@ def daily_update(db: Database, trade_date: Optional[str] = None) -> dict:
 #  工具函数
 # ═══════════════════════════════════════════════════════════════
 
+def _parse_income_rows(df: pd.DataFrame) -> List[dict]:
+    """将 income DataFrame 转换为数据库行列表"""
+    rows = []
+    for _, r in df.iterrows():
+        rows.append({
+            "ts_code": r["ts_code"],
+            "end_date": str(r.get("end_date", "")),
+            "ann_date": str(r.get("ann_date", r.get("f_ann_date", ""))),
+            "report_type": str(r.get("report_type", "1")),
+            "revenue": _safe_float(r.get("total_revenue", r.get("revenue", None))),
+            "operate_cost": _safe_float(r.get("oper_cost", None)),
+            "total_profit": _safe_float(r.get("total_profit", None)),
+            "net_profit": _safe_float(r.get("n_income", None)),
+            "net_profit_attr": _safe_float(r.get("n_income_attr_p", None)),
+            "diluted_eps": _safe_float(r.get("diluted_eps", None)),
+        })
+    return rows
+
+
+def _parse_balancesheet_rows(df: pd.DataFrame) -> List[dict]:
+    """将 balancesheet DataFrame 转换为数据库行列表"""
+    rows = []
+    for _, r in df.iterrows():
+        rows.append({
+            "ts_code": r["ts_code"],
+            "end_date": str(r.get("end_date", "")),
+            "ann_date": str(r.get("ann_date", "")),
+            "report_type": str(r.get("report_type", "1")),
+            "total_assets": _safe_float(r.get("total_assets", None)),
+            "total_liab": _safe_float(r.get("total_liab", None)),
+            "total_equity": _safe_float(r.get("total_hldr_eqy_exc_min_int", None)),
+            "money_cap": _safe_float(r.get("monetary_cap", None)),
+            "accounts_recv": _safe_float(r.get("accounts_receiv", None)),
+            "inventory": _safe_float(r.get("inventory", None)),
+            "fixed_assets": _safe_float(r.get("fix_assets", None)),
+        })
+    return rows
+
+
 def _get_report_periods(start_date: str, end_date: str) -> List[str]:
     """
     生成财报期列表（YYYYMMDD → 季度报告期）。
@@ -555,11 +633,16 @@ def _get_report_periods(start_date: str, end_date: str) -> List[str]:
     end = datetime.strptime(end_date, "%Y%m%d")
 
     year = start.year
-    quarters = [3, 6, 9, 12]
+    quarter_ends = [3, 6, 9, 12]
 
     while year <= end.year:
-        for q_month in quarters:
-            period = f"{year}{q_month:02d}30"
+        for q_month in quarter_ends:
+            # 季末日期：0331/0630/0930/1231
+            if q_month in [3, 6, 9]:
+                day = 30
+            else:
+                day = 31
+            period = f"{year}{q_month:02d}{day}"
             period_dt = datetime.strptime(period, "%Y%m%d")
             if start <= period_dt <= end:
                 periods.append(period)
@@ -594,6 +677,7 @@ def main():
     parser.add_argument("--end", default=None, help="结束日期")
     parser.add_argument("--years", type=int, default=4, help="回填年数（默认4年）")
     parser.add_argument("--index", default=None, help="指数代码（如 000300.SH）")
+    parser.add_argument("--codes", default=None, help="指定股票代码（逗号分隔，如 600519.SH,000858.SZ）")
     parser.add_argument("--data-dir", default=None, help="数据目录")
     args = parser.parse_args()
 
@@ -618,6 +702,7 @@ def main():
         return
 
     end_date = args.end or datetime.now().strftime("%Y%m%d")
+    ts_codes = args.codes.split(",") if args.codes else None
 
     if args.daily_update:
         results = daily_update(db)
@@ -625,16 +710,16 @@ def main():
 
     elif args.all:
         sync_stock_basic(db)
-        sync_income(db, start_date=args.start, end_date=end_date)
-        sync_balancesheet(db, start_date=args.start, end_date=end_date)
+        sync_income(db, start_date=args.start, end_date=end_date, ts_codes=ts_codes)
+        sync_balancesheet(db, start_date=args.start, end_date=end_date, ts_codes=ts_codes)
         sync_index_weight(db)
         sync_top_list(db, start_date=args.start, end_date=end_date)
 
     elif args.command == "income":
-        sync_income(db, start_date=args.start, end_date=end_date)
+        sync_income(db, start_date=args.start, end_date=end_date, ts_codes=ts_codes)
 
     elif args.command == "balancesheet":
-        sync_balancesheet(db, start_date=args.start, end_date=end_date)
+        sync_balancesheet(db, start_date=args.start, end_date=end_date, ts_codes=ts_codes)
 
     elif args.command == "stock_basic":
         sync_stock_basic(db)
