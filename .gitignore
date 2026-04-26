@@ -47,3 +47,11 @@ Thumbs.db
 # Secrets
 .env
 .tushare_token
+
+# WorkBuddy runtime
+.codebuddy/
+.workbuddy/
+.update_pid
+run_update_bg.py
+update_*.txt
+test_*.py

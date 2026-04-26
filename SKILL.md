@@ -1,351 +1,195 @@
 ---
 name: stock-analyst
-version: 3.2.0
-description: 基于AkShare的智能股票分析，支持A股/港股/美股五维分析(技术面/基本面/资金面/消息面/形态面)，增强财务分析、估值评估、行业识别、业绩趋势判断和消息面影响评估。V3.2优化：数据获取流程、新浪财经API最佳实践、Windows PowerShell执行规范。V3.1新增：交易形态识别和建议策略板块（K线形态识别库60+种形态、信号共振评分系统7维度加权、情绪指数贪婪恐慌指数、缠论买卖点一买二买三卖）。V3.0新增：决策仪表盘、多数据源降级、基本面四维分析、批量导入、交易纪律、大盘环境判断、定时执行、回测验证。自动识别：600/601/603/000/002/300/688/430/830开头的A股代码；沪市600/601/603、深市000/002/300、中小板002、创业板300、科创板688、北交所430/830、900开头的B股代码；以及西部材料、隆华科技、亿纬锂能、贵州茅台、平安银行、宁德时代等股票名称。
+version: 4.0.0
+description: "纯分析层股票分析Skill。与tushare-data配合使用：tushare-data负责数据获取，本Skill负责技术指标计算、K线形态识别、缠论买卖点、信号共振评分、情绪指数、基本面评分和综合建议。触发词：技术分析、K线形态、缠论、买卖点、信号共振、情绪指数、形态识别、五维分析、综合分析、股票评分、投资建议"
 author: zhuang-HE
-homepage: https://github.com/zhuang-HE/stock-analyst-skill
 tags:
-  - 股票
-  - 金融
-  - 数据分析
-  - A股
-  - 港股
-  - 美股
-  - AkShare
-  - 回测
-  - 批量分析
-  - 定时任务
-  - 交易纪律
-  - 大盘分析
-  - 决策仪表盘
-  - 多数据源
-  - 基本面分析
-  - 估值分析
-  - 资金流向
-  - 机构持仓
-  - 自动推送
-  - GitHub Actions
-  - 股票导入
-  - CSV导入
-  - 图片识别
-  - 剪贴板导入
   - 技术分析
-  - 消息面分析
-  - 投资策略
-  - 仓位管理
-  - 止损止盈
-  - 盈亏比
-  - 市场环境
-  - 进攻均衡防守
-  - risk-on
-  - risk-off
-  - 策略回测
-  - 胜率统计
-  - 收益分析
   - K线形态
-  - 形态识别
-  - 信号共振
-  - 情绪指数
   - 缠论
   - 买卖点
+  - 信号共振
+  - 情绪指数
+  - 形态识别
+  - 五维分析
+  - 综合分析
+  - 股票评分
+  - 投资建议
+  - MA
+  - RSI
+  - KDJ
+  - MACD
+  - 布林带
+  - 均线系统
   - 早晨之星
   - 黄昏之星
   - 锤头线
-  - 射击之星
-  - 阳包阴
-  - 阴包阳
-  - 红三兵
-  - 三只乌鸦
-  - 十字星
   - 一买
   - 二买
   - 三买
-  - 一卖
-  - 二卖
-  - 三卖
   - 中枢
   - 笔
-  - 线段
   - 贪婪恐慌指数
-  - 市场 sentiment
-  - 多因子评分
-  - 策略建议
-  - 交易信号
   - 共振评分
-  - 形态分析
-  - 股票代码
-  - 沪市股票
-  - 深市股票
-  - 中小板
-  - 创业板
-  - 科创板
-  - 北交所
-  - 分析股票
-  - 查看股票
-  - 查询股票
-  - 股票名称
 created: 2026-04-10
-updated: 2026-04-17
+updated: 2026-04-26
 ---
 
-# Stock Analyst - 股票分析Skill V3.1
+# Stock Analyst v4.0 - 纯分析层
 
-基于AkShare开源金融数据库的智能股票分析工具，支持五维分析体系（技术面、基本面、资金面、消息面、形态面）。
+**架构变更（v4.0）**：本 Skill 不再自行获取数据，改为接收 tushare-data 预取的 JSON 数据进行分析。
 
-## ✨ V3.1 重大更新 - 交易形态识别和建议策略
+## 协作模式
 
-### 📐 交易形态识别和建议策略板块
-全新板块整合多维度形态分析，提供更精准的交易决策支持：
-
-#### 1️⃣ K线形态识别库（60+种形态）
-- **看涨形态**: 早晨之星、锤头线、倒锤头、阳包阴、刺透形态、红三兵、双针探底、看涨孕线、蜻蜓十字星、上升三法等20+种
-- **看跌形态**: 黄昏之星、射击之星、吊颈线、阴包阳、乌云盖顶、三只乌鸦、双针探顶、看跌孕线、墓碑十字星、下降三法等20+种
-- **持续形态**: 十字星、长腿十字星、高位浪、陀螺线、捉腰带线等10+种
-- **形态评分系统**: 基于可靠性和置信度加权评分
-
-#### 2️⃣ 缠论买卖点计算
-- **笔识别**: 自动识别顶底分型构建笔
-- **中枢识别**: 自动计算中枢区间（ZG/ZD）
-- **买卖点识别**: 
-  - 一买/一卖：趋势背驰点
-  - 二买/二卖：回调不破前低/反弹不过前高
-  - 三买/三卖：突破中枢后回抽确认
-- **当前趋势判断**: 向上笔/向下笔进行中
-
-#### 3️⃣ 信号共振评分系统
-- **多维度信号整合**: K线形态(20%) + 技术指标(20%) + 趋势信号(15%) + 成交量(10%) + 基本面(15%) + 情绪面(10%) + 缠论(10%)
-- **共振级别**: 强共振(≥70分) / 中等共振(40-70分) / 弱共振(20-40分) / 无共振(<20分)
-- **综合评分**: -100到+100分，直观显示多空力量对比
-- **信号分类**: 自动分类看涨/看跌/中性信号
-
-#### 4️⃣ 市场情绪指数
-- **指数构成**: 价格波动(25%) + 成交量情绪(25%) + 涨跌动量(25%) + 技术指标(25%)
-- **情绪等级**: 极度恐慌(0-20) / 恐慌(20-40) / 中性(40-60) / 贪婪(60-80) / 极度贪婪(80-100)
-- **交易信号**: 基于情绪指数生成买入/卖出/观望建议
-- **趋势判断**: 情绪上升/下降/平稳
-
-#### 5️⃣ 策略建议整合
-- **主要操作**: 强烈买入/买入/观望/卖出/强烈卖出
-- **买卖点建议**: 整合缠论买卖点 + 情绪极端点
-- **仓位建议**: 根据共振评分动态调整
-- **推理逻辑**: 展示完整决策依据
-
----
-
-## ✨ V3.0 功能回顾
-
-### 🎯 决策仪表盘
-- 一句话核心结论
-- 精确买卖点位（买入/止损/目标价）
-- 操作检查清单（✅满足 ⚠️注意 ❌不满足）
-- 四维分析摘要
-- 风险警示
-
-### 🔄 多数据源降级
-- **A股**: AkShare(主) → Baostock(备)
-- **港股/美股**: YFinance(主) → AkShare(备)
-- 自动故障转移，确保数据可用性
-
-### 📊 基本面四维分析
-1. **估值维度**: PE/PB/历史分位数/支撑压力位
-2. **成长维度**: 营收/利润增长/ROE/毛利率趋势
-3. **资金维度**: 主力流向/散户反向指标
-4. **机构维度**: 机构持股/盈利预测/覆盖度
-
-### 📥 批量导入
-- CSV/Excel文件导入
-- 图片OCR识别（需安装easyocr/pytesseract）
-- 剪贴板粘贴
-- 智能代码识别（A股/港股/美股）
-
-### ⚖️ 交易纪律硬编码
-- **严禁追高**: 乖离率>7%警告，>10%禁止买入
-- **趋势交易**: MA5>MA10>MA20多头排列确认
-- **仓位管理**: 动态仓位建议（5%-30%）
-- **止损止盈**: 自动计算，盈亏比≥2:1
-- **消息时效**: 3天内新闻 freshness 检查
-
-### 🌐 大盘环境判断
-- **A股**: 三段式策略（进攻/均衡/防守）
-- **美股**: Regime Strategy（risk-on/neutral/risk-off）
-- 仓位建议联动
-
-### ⏰ GitHub Actions 定时执行
-- 每日收盘后自动分析
-- 多平台推送（企业微信/飞书/Discord）
-- 零成本部署
-
-### 📈 回测验证
-- 历史信号回测
-- 胜率/盈亏比统计
-- 累计收益曲线
-- 策略评估报告
-
-## 功能特性
-
-### 核心能力
-- 📊 **实时行情**: 价格、涨跌幅、成交量、成交额
-- 📈 **技术分析**: KDJ、MACD、RSI、均线系统
-- 💼 **基本面分析（v3.0增强）**: 
-  - 四维基本面（估值/成长/资金/机构）
-  - 多期财务数据（5期趋势）
-  - 估值评估（PE/PB/历史分位数/支撑压力位）
-  - 行业与业务板块识别
-  - 机构盈利预测（3年预期+增长率）
-  - 资产负债表关键指标（现金/应收/存货）
-  - 业绩趋势综合判断
-- 💰 **资金面分析**: 主力资金流向、散户反向指标
-- 📰 **消息面分析（v3.0增强）**: 最新新闻+消息面对基本面的影响评估
-- ⚖️ **交易纪律（v3.0新增）**: 乖离率检查、均线排列、仓位管理、止损止盈
-- 🌐 **大盘环境（v3.0新增）**: 进攻/均衡/防守策略、risk-on/risk-off判断
-- 📐 **形态面分析（v3.1新增）**: K线形态识别60+种、缠论买卖点、信号共振评分、情绪指数
-
-### 支持市场
-- **A股**: 600xxx(沪)、000xxx/002xxx/300xxx(深)
-- **港股**: 00700.HK、09988.HK 等
-- **美股**: AAPL、TSLA、MSFT 等
-
-## 使用方法
-
-### 快速分析
-在WorkBuddy中直接输入股票代码即可分析：
-- `000001` - 平安银行
-- `600519` - 贵州茅台
-- `002149` - 西部材料
-- `0700.HK` - 腾讯控股
-- `AAPL` - 苹果公司
-
-### 批量分析
-```bash
-# 分析多只股票
-python scripts/batch_analyze.py --stocks "000001,600519,300750" --output-dir ./reports
-
-# 仅市场环境分析
-python scripts/batch_analyze.py --type market_only
+```
+tushare-data (数据层) → JSON 数据文件 → stock-analyst (分析层) → 完整分析结果
 ```
 
-### 回测验证
-```bash
-# 对单只股票回测
-python scripts/backtest_engine.py --code 000001 --start 2024-01-01 --end 2024-12-31
-```
+**数据获取** → `tushare-data` Skill
+**分析计算** → 本 Skill
 
-### 导入股票列表
+## 什么时候用本 Skill
+
+- 用户要求**技术分析**（MA/RSI/KDJ/MACD/布林带）
+- 用户要求**K线形态识别**（60+种形态）
+- 用户要求**缠论买卖点**分析
+- 用户要求**信号共振评分**
+- 用户要求**情绪指数**计算
+- 用户要求**五维分析**或**综合分析**
+- 用户要求**投资建议**或**股票评分**
+
+## 什么时候不用本 Skill
+
+- 用户只想**查行情** → tushare-data
+- 用户只想**查财报** → tushare-data
+- 用户只想**看资金流向** → tushare-data
+- 用户要求**数据导出** → tushare-data
+
+## 执行流程
+
+### 完整分析流程
+
+当用户要求"分析XXX"时，按以下步骤执行：
+
+1. **调用 tushare-data** 获取数据（一次性），保存为 JSON 文件
+2. **调用本 Skill** 执行分析脚本
+
+#### Step 1: 数据获取（tushare-data）
+
+用 Python 脚本一次性获取所有需要的数据：
+
 ```python
-from scripts.stock_importer import import_stocks_from_file
+import tushare as ts
+import json
+import os
+import sys
 
-# 从CSV导入
-stocks = import_stocks_from_file("./watchlist.csv")
+pro = ts.pro_api(os.environ.get('TUSHARE_TOKEN'))
+code = sys.argv[1]  # 如 "300263"
+ts_code = f"{code}.SZ" if code.startswith(('0','3')) else f"{code}.SH"
 
-# 从文本导入
-stocks = import_stocks_from_text("""
-600519,贵州茅台
-000001,平安银行
-300750,宁德时代
-""")
+# 获取日期范围
+from datetime import datetime, timedelta
+end_date = datetime.now().strftime('%Y%m%d')
+start_date = (datetime.now() - timedelta(days=400)).strftime('%Y%m%d')
+
+data = {'code': code, 'ts_code': ts_code}
+
+# 1. 日线行情
+df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+data['daily'] = df.to_dict('records') if df is not None else []
+
+# 2. 每日指标
+df = pro.daily_basic(ts_code=ts_code, start_date=start_date, end_date=end_date)
+data['daily_basic'] = df.to_dict('records') if df is not None else []
+
+# 3. 利润表
+df = pro.income(ts_code=ts_code, period_type='1')
+data['income'] = df.to_dict('records')[:8] if df is not None else []
+
+# 4. 财务指标
+df = pro.fina_indicator(ts_code=ts_code)
+data['fina_indicator'] = df.to_dict('records')[:8] if df is not None else []
+
+# 5. 资金流向
+df = pro.moneyflow(ts_code=ts_code, start_date=start_date, end_date=end_date)
+data['moneyflow'] = df.to_dict('records') if df is not None else []
+
+# 6. 新闻
+try:
+    df = pro.news(src='sina', start_date=(datetime.now()-timedelta(days=7)).strftime('%Y%m%d'))
+    data['news'] = df.to_dict('records')[:10] if df is not None else []
+except:
+    data['news'] = []
+
+# 7. 盈利预测
+try:
+    df = pro.forecast(ts_code=ts_code)
+    data['forecast'] = df.to_dict('records')[:5] if df is not None else []
+except:
+    data['forecast'] = []
+
+# 保存
+out_path = os.path.join(os.environ.get('TEMP', '/tmp'), f'stock_data_{code}.json')
+with open(out_path, 'w', encoding='utf-8') as f:
+    json.dump(data, f, ensure_ascii=False, default=str)
+print(f"DATA_FILE={out_path}")
 ```
 
-### 查看大盘环境
-```python
-from scripts.market_regime import get_market_summary
-
-# 获取市场总结
-print(get_market_summary())
-```
-
-## GitHub Actions 部署
-
-1. Fork 本仓库
-2. 配置 Secrets：
-   - `STOCK_LIST`: 要分析的股票列表（如：000001,600519,300750）
-   - `WECOM_WEBHOOK`: 企业微信机器人Webhook（可选）
-   - `FEISHU_WEBHOOK`: 飞书机器人Webhook（可选）
-   - `DISCORD_WEBHOOK`: Discord Webhook（可选）
-3. 启用 Actions
-4. 每天 15:30（UTC+8）自动执行
-
-## 依赖
+#### Step 2: 执行分析
 
 ```bash
-pip install -r requirements.txt
+python <skill_dir>/scripts/full_analysis.py <data_json_path> <code>
 ```
 
-核心依赖：
-- akshare >= 1.10.0
-- pandas >= 1.3.0
-- numpy >= 1.21.0
-- yfinance >= 0.2.0（港股/美股）
+## 核心模块
 
-可选依赖：
-- easyocr / pytesseract（图片识别）
-- pyperclip（剪贴板）
-- openpyxl / xlrd（Excel）
+### 1. 技术指标计算
+- MA(5/10/20/60)
+- RSI(14)
+- KDJ(9,3,3)
+- MACD(12,26,9)
+- 布林带(20,2)
+
+### 2. K线形态识别 (patterns/candlestick.py)
+- 60+ 种形态
+- 类名: `CandlestickPatternRecognizer`
+- 方法: `recognize_all(df, lookback=5)` → `List[PatternResult]`
+
+### 3. 缠论分析 (patterns/chanlun.py)
+- 笔/中枢/买卖点
+- 类名: `ChanlunAnalyzer`（注意不是 ChanLunAnalyzer）
+- 方法: `analyze(df)` → `dict`
+
+### 4. 信号共振评分 (signals/scoring.py)
+- 7维度加权评分
+- 类名: `SignalResonanceScorer`
+- 方法: `calculate_resonance(signals)` → `ResonanceResult`
+
+### 5. 情绪指数 (ai_models/sentiment_index.py)
+- 4组件综合情绪
+- 类名: `SentimentIndexCalculator`
+- 方法: `calculate(df)` → `SentimentResult`
 
 ## 项目结构
 
 ```
 stock-analyst/
-├── .github/workflows/          # GitHub Actions
-│   └── daily_analysis.yml      # 定时分析工作流
-├── patterns/                   # 形态识别模块（v3.1新增）
-│   ├── __init__.py
-│   ├── candlestick.py          # K线形态识别库（60+种形态）
-│   └── chanlun.py              # 缠论分析（笔/中枢/买卖点）
-├── signals/                    # 信号系统（v3.1新增）
-│   ├── __init__.py
-│   └── scoring.py              # 信号共振评分系统
-├── ai_models/                  # AI模型（v3.1新增）
-│   ├── __init__.py
-│   └── sentiment_index.py      # 情绪指数计算
-├── data_provider/              # 数据提供者
-│   ├── __init__.py
-│   └── data_provider.py        # 多数据源降级
-├── templates/                  # 输出模板
-│   ├── __init__.py
-│   ├── dashboard_template.py   # 决策仪表盘（含形态板块）
-│   └── pattern_report.py       # 形态分析报告生成器
-├── scripts/                    # 分析脚本
-│   ├── full_analysis.py        # 完整分析（v2.0）
-│   ├── fundamental_analyzer.py # 基本面四维分析（v3.0）
-│   ├── stock_importer.py       # 批量导入（v3.0）
-│   ├── trading_discipline.py   # 交易纪律（v3.0）
-│   ├── market_regime.py        # 大盘环境（v3.0）
-│   ├── batch_analyze.py        # 批量分析（v3.0）
-│   └── backtest_engine.py      # 回测引擎（v3.0）
-├── requirements.txt
 ├── SKILL.md
-└── README.md
+├── scripts/
+│   └── full_analysis.py     # 统一分析入口
+├── patterns/
+│   ├── candlestick.py        # K线形态识别
+│   └── chanlun.py            # 缠论分析
+├── signals/
+│   └── scoring.py            # 信号共振评分
+└── ai_models/
+    └── sentiment_index.py    # 情绪指数
 ```
 
 ## 免责声明
 
-本工具仅供学习和研究使用，数据仅供参考，不构成投资建议。股市有风险，投资需谨慎。
-
----
-
-## 🔧 执行流程最佳实践
-
-### 数据获取标准化流程
-当用户请求股票分析时，按以下顺序执行：
-
-1. **代码识别**：自动识别沪深市场（000/002/300→深市sz，600/601/603→沪市sh）
-2. **一次性获取**：使用新浪财经API一次获取足够历史数据（datalen建议120）
-3. **指标计算**：在Python中一次性计算所有技术指标，避免多次请求
-4. **报告生成**：基于计算结果生成完整分析报告
-
-### Windows PowerShell 注意事项
-- Python命令中包含多行代码块会导致解析错误
-- 解决方案：
-  1. 将复杂逻辑写入临时.py脚本文件
-  2. 使用单行命令执行简单查询
-  3. 或使用 `python - << 'EOF' ... EOF` heredoc语法
-
-### 推荐数据源
-| 市场 | 主数据源 | 备数据源 |
-|------|----------|----------|
-| A股 | 新浪财经K线API | AkShare |
-| 港股 | 新浪财经/腾讯财经 | YFinance |
-| 美股 | YFinance | AkShare |
+本工具仅供学习和研究使用，分析结果仅供参考，不构成投资建议。股市有风险，投资需谨慎。
 
 ---
 
@@ -354,7 +198,7 @@ stock-analyst/
 当用户输入某种表述但本 Skill 未被自动激活时，完成任务后**必须**执行：
 1. 分析用户原始请求中的关键表述
 2. 将其抽象为通用触发词（避免过于具体的个例）
-3. 用 replace_in_file 工具将触发词追加到本文件 YAML frontmatter `tags` 字段末尾（本 Skill 使用 tags 而非 description 触发词）
+3. 用 replace_in_file 工具将触发词追加到本文件 YAML frontmatter `tags` 字段末尾
 4. 不得重复添加已存在的触发词
 
 ---
@@ -362,16 +206,12 @@ stock-analyst/
 ## 📚 踩坑经验
 
 > 由 AI 在实际调用中自动积累，**请勿手动删除**。
-> 规则：凡经过 2 次及以上尝试才成功的情况必须追加。格式：`- 场景/接口：经验要点`
+> 规则：凡经过 2 次及以上尝试才成功的情况必须追加。格式：`- 场景/模块：经验要点`
 
-- data_provider / 多数据源降级：YFinance 对港股代码需要补零到5位（如 0700 → 00700）
-- fundamental_analyzer / 财务数据解析：中文数字需要处理 '亿'/'万' 单位转换
-- trading_discipline / 乖离率计算：使用 MA20 作为基准，而非当前价格
-- batch_analyze / GitHub Actions：secrets 中的逗号分隔列表需要正确处理引号
-- candlestick / K线形态识别：形态判断需要考虑前序趋势，同一形态在不同位置意义不同（如锤头线vs吊颈线）
-- chanlun / 缠论买卖点：一买/一卖需要严格背驰确认，不能仅凭形态相似判断
-- sentiment_index / 情绪指数：极端情绪（<20或>80）往往预示反转，但需结合趋势确认
-- signal_resonance / 信号共振：单一强信号不如多个中等信号共振可靠
-- data_provider / PowerShell执行：Windows PowerShell中python -c命令只支持单行，复杂逻辑需写成.py脚本文件执行
-- data_provider / 数据获取效率：单次请求尽量获取足够数据（如datalen=120），减少多次请求
-- data_provider / 新浪财经K线：symbol参数格式为sz002149（深市）/sh600519（沪市），scale参数240=日K/5=5分钟K
+- candlestick / K线形态识别：方法名是 `recognize_all()` 不是 `recognize()`
+- chanlun / 缠论分析：类名是 `ChanlunAnalyzer` 不是 `ChanLunAnalyzer`
+- scoring / 信号共振：方法名是 `calculate_resonance()` 不是 `calculate()`
+- sentiment_index / 情绪指数：类名是 `SentimentIndexCalculator`，方法名是 `calculate()`
+- full_analysis / 数据输入：v4.0 起不再自行获取数据，通过 JSON 文件接收 tushare-data 预取数据
+- full_analysis / Tushare 数据格式：日线字段名用 trade_date/open/high/low/close/vol/amount，需映射为标准名
+- full_analysis / Windows PowerShell：Python 命令中多行代码会解析错误，复杂逻辑写入 .py 脚本执行
