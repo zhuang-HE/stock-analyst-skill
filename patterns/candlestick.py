@@ -31,7 +31,7 @@ class PatternResult:
 
 class CandlestickPatternRecognizer:
     """K线形态识别器"""
-    
+
     def __init__(self):
         self.patterns = {
             # 看涨形态
@@ -90,27 +90,42 @@ class CandlestickPatternRecognizer:
     def recognize_all(self, df: pd.DataFrame, lookback: int = 5) -> List[PatternResult]:
         """
         识别所有形态
-        
+
         Args:
             df: 包含open, high, low, close的DataFrame
-            lookback: 向前查看的K线数量
-            
+            lookback: 在最后 lookback 根K线中搜索形态（默认5）
+
         Returns:
             识别出的形态列表
         """
         results = []
-        
-        for pattern_name, pattern_func in self.patterns.items():
-            try:
-                pattern = pattern_func(df, lookback)
-                if pattern:
-                    results.append(pattern)
-            except Exception as e:
-                continue
-        
+        # 确保在最近 lookback 根K线的每个位置都检查形态
+        scan_end = min(lookback, len(df))
+
+        for offset in range(scan_end):
+            sub_df = df.iloc[:len(df) - offset] if offset > 0 else df
+            for pattern_name, pattern_func in self.patterns.items():
+                try:
+                    pattern = pattern_func(sub_df, lookback)
+                    if pattern:
+                        # 更新 position 为形态距最新K线的偏移量
+                        pattern.position = offset
+                        results.append(pattern)
+                except Exception:
+                    continue
+
+        # 去重：同一形态名称在同一位置只保留最高置信度的
+        seen = set()
+        unique_results = []
+        for p in results:
+            key = (p.name, p.position)
+            if key not in seen:
+                seen.add(key)
+                unique_results.append(p)
+
         # 按可靠性和置信度排序
-        results.sort(key=lambda x: (x.reliability, x.confidence), reverse=True)
-        return results
+        unique_results.sort(key=lambda x: (x.reliability, x.confidence), reverse=True)
+        return unique_results
     
     def recognize_bullish(self, df: pd.DataFrame, lookback: int = 5) -> List[PatternResult]:
         """识别看涨形态"""
@@ -137,6 +152,15 @@ class CandlestickPatternRecognizer:
     def _get_total_range(self, high: float, low: float) -> float:
         """获取总波动范围"""
         return high - low if high != low else 0.001
+
+    def _avg_range(self, df: pd.DataFrame, period: int = 10) -> float:
+        """计算近期平均K线振幅（用于动态阈值）"""
+        n = min(period, len(df))
+        if n == 0:
+            return 0.01
+        ranges = (df.iloc[-n:]['high'] - df.iloc[-n:]['low']).values
+        avg = np.mean(ranges)
+        return avg if avg > 0 else 0.01
     
     def _is_bullish(self, open_price: float, close_price: float) -> bool:
         """判断是否为阳线"""
@@ -1295,7 +1319,9 @@ class CandlestickPatternRecognizer:
         cond1 = all(self._is_bearish(c['open'], c['close']) for c in [c1, c2, c3])
         cond2 = c2['low'] < c1['low']
         cond3 = c3['low'] > c2['low']
-        cond4 = c3['close'] > c3['open'] * 0.5 + c3['close'] * 0.5
+        # 第三根阴线收盘在蜡烛上半部分（抛压减弱，买盘开始介入）
+        c3_range = self._get_total_range(c3['high'], c3['low'])
+        cond4 = c3_range > 0 and (c3['close'] - c3['low']) / c3_range > 0.4
         
         if cond1 and cond2 and cond3 and cond4:
             return PatternResult(

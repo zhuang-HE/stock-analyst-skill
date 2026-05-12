@@ -171,28 +171,34 @@ class ChanlunAnalyzer:
         return bis
     
     def _identify_zhongshu(self) -> List[Zhongshu]:
-        """识别中枢"""
+        """识别中枢（三笔重叠区间）"""
         if len(self.bis) < 3:
             return []
-        
+
         zhongshus = []
-        
+
         for i in range(len(self.bis) - 2):
             bi1, bi2, bi3 = self.bis[i], self.bis[i+1], self.bis[i+2]
-            
-            # 检查是否形成中枢（三笔重叠）
-            highs = [bi1.start_price, bi1.end_price, bi2.start_price, 
-                     bi2.end_price, bi3.start_price, bi3.end_price]
-            lows = [bi1.start_price, bi1.end_price, bi2.start_price, 
-                    bi2.end_price, bi3.start_price, bi3.end_price]
-            
-            gg = max(highs)  # 中枢高点
-            dd = min(lows)   # 中枢低点
-            
-            # 计算中枢区间（取中间区域）
-            sorted_prices = sorted(highs + lows)
-            zg = sorted_prices[-3]  # 第三高
-            zd = sorted_prices[2]   # 第三低
+
+            # 收集三笔的起止价格
+            prices = [bi1.start_price, bi1.end_price,
+                      bi2.start_price, bi2.end_price,
+                      bi3.start_price, bi3.end_price]
+
+            # 中枢核心区间：三笔重叠部分的上下沿
+            # zg = 重叠区间的上沿（三笔最低的高点）
+            # zd = 重叠区间的下沿（三笔最高的低点）
+            bi_highs = [max(bi1.start_price, bi1.end_price),
+                        max(bi2.start_price, bi2.end_price),
+                        max(bi3.start_price, bi3.end_price)]
+            bi_lows = [min(bi1.start_price, bi1.end_price),
+                       min(bi2.start_price, bi2.end_price),
+                       min(bi3.start_price, bi3.end_price)]
+
+            zg = min(bi_highs)  # 三笔中最低的高点 = 重叠上沿
+            zd = max(bi_lows)   # 三笔中最高的低点 = 重叠下沿
+            gg = max(bi_highs)  # 三笔中最高的高点
+            dd = min(bi_lows)   # 三笔中最低的低点
             
             # 确认有重叠区域
             if zg > zd:
@@ -209,111 +215,143 @@ class ChanlunAnalyzer:
         return zhongshus
     
     def _identify_buy_points(self) -> List[BuyPoint]:
-        """识别买卖点"""
+        """识别买卖点（遍历所有笔序列，非仅最近5笔）"""
         buy_points = []
-        
-        if len(self.bis) < 4 or len(self.zhongshus) < 1:
+        n = len(self.bis)
+
+        if n < 3:
             return buy_points
-        
-        # 获取最近的笔和中枢
-        recent_bis = self.bis[-5:] if len(self.bis) >= 5 else self.bis
-        recent_zhongshu = self.zhongshus[-1] if self.zhongshus else None
-        
-        # 一买：下跌趋势背驰
-        if len(recent_bis) >= 3:
-            bi1, bi2, bi3 = recent_bis[-3], recent_bis[-2], recent_bis[-1]
-            
-            if bi1.direction == BiDirection.DOWN and bi2.direction == BiDirection.UP and bi3.direction == BiDirection.DOWN:
-                # 检查背驰（第三笔力度小于第一笔）
-                if bi3.height < bi1.height * 0.8:
+
+        # 遍历笔序列，寻找背驰段
+        for i in range(n - 2):
+            bi_a = self.bis[i]
+            bi_b = self.bis[i + 1]
+            bi_c = self.bis[i + 2]
+
+            # ===== 一买：下跌趋势背驰 =====
+            if (bi_a.direction == BiDirection.DOWN
+                    and bi_b.direction == BiDirection.UP
+                    and bi_c.direction == BiDirection.DOWN
+                    and bi_c.height < bi_a.height * 0.8):
+                buy_points.append(BuyPoint(
+                    idx=bi_c.end_idx,
+                    price=bi_c.end_price,
+                    bp_type=BuyPointType.FIRST_BUY,
+                    confidence=0.80,
+                    description=f"一买：下跌趋势背驰，第一笔高度{bi_a.height:.2f}，第三笔高度{bi_c.height:.2f}"
+                ))
+
+            # ===== 一卖：上涨趋势背驰 =====
+            if (bi_a.direction == BiDirection.UP
+                    and bi_b.direction == BiDirection.DOWN
+                    and bi_c.direction == BiDirection.UP
+                    and bi_c.height < bi_a.height * 0.8):
+                buy_points.append(BuyPoint(
+                    idx=bi_c.end_idx,
+                    price=bi_c.end_price,
+                    bp_type=BuyPointType.FIRST_SELL,
+                    confidence=0.80,
+                    description=f"一卖：上涨趋势背驰，第一笔高度{bi_a.height:.2f}，第三笔高度{bi_c.height:.2f}"
+                ))
+
+        # ===== 二买：一买后的回调不创新低 =====
+        first_buys = [bp for bp in buy_points if bp.bp_type == BuyPointType.FIRST_BUY]
+        for fb in first_buys:
+            # 找到一买对应的笔在 bis 中的索引
+            fb_bi_idx = None
+            for j, bi in enumerate(self.bis):
+                if bi.end_idx == fb.idx:
+                    fb_bi_idx = j
+                    break
+            if fb_bi_idx is None or fb_bi_idx + 2 >= n:
+                continue
+            # 一买后的笔应为向上
+            bi_after = self.bis[fb_bi_idx + 1] if fb_bi_idx + 1 < n else None
+            # 再后面一笔向下回调，不创新低
+            bi_pullback = self.bis[fb_bi_idx + 2] if fb_bi_idx + 2 < n else None
+            if (bi_after and bi_pullback
+                    and bi_after.direction == BiDirection.UP
+                    and bi_pullback.direction == BiDirection.DOWN
+                    and bi_pullback.end_price > fb.price):
+                buy_points.append(BuyPoint(
+                    idx=bi_pullback.end_idx,
+                    price=bi_pullback.end_price,
+                    bp_type=BuyPointType.SECOND_BUY,
+                    confidence=0.75,
+                    description=f"二买：一买后回调不创新低（一买价{fb.price:.2f}，回调价{bi_pullback.end_price:.2f}）"
+                ))
+
+        # ===== 二卖：一卖后的反弹不创新高 =====
+        first_sells = [bp for bp in buy_points if bp.bp_type == BuyPointType.FIRST_SELL]
+        for fs in first_sells:
+            fs_bi_idx = None
+            for j, bi in enumerate(self.bis):
+                if bi.end_idx == fs.idx:
+                    fs_bi_idx = j
+                    break
+            if fs_bi_idx is None or fs_bi_idx + 2 >= n:
+                continue
+            bi_after = self.bis[fs_bi_idx + 1] if fs_bi_idx + 1 < n else None
+            bi_pullback = self.bis[fs_bi_idx + 2] if fs_bi_idx + 2 < n else None
+            if (bi_after and bi_pullback
+                    and bi_after.direction == BiDirection.DOWN
+                    and bi_pullback.direction == BiDirection.UP
+                    and bi_pullback.end_price < fs.price):
+                buy_points.append(BuyPoint(
+                    idx=bi_pullback.end_idx,
+                    price=bi_pullback.end_price,
+                    bp_type=BuyPointType.SECOND_SELL,
+                    confidence=0.75,
+                    description=f"二卖：一卖后反弹不创新高（一卖价{fs.price:.2f}，反弹价{bi_pullback.end_price:.2f}）"
+                ))
+
+        # ===== 三买：突破中枢后回抽不进入中枢 =====
+        if self.zhongshus:
+            zs = self.zhongshus[-1]
+            for i in range(max(0, n - 3), n - 1):
+                bi_up = self.bis[i]
+                bi_pullback = self.bis[i + 1]
+                if (bi_up.direction == BiDirection.UP
+                        and bi_pullback.direction == BiDirection.DOWN
+                        and bi_up.end_price > zs.zg
+                        and bi_pullback.end_price > zs.zg):
                     buy_points.append(BuyPoint(
-                        idx=bi3.end_idx,
-                        price=bi3.end_price,
-                        bp_type=BuyPointType.FIRST_BUY,
-                        confidence=0.80,
-                        description=f"一买：下跌趋势背驰，第一笔高度{bi1.height:.2f}，第三笔高度{bi3.height:.2f}"
-                    ))
-        
-        # 二买：一买后的回调不创新低
-        if len(recent_bis) >= 4 and buy_points:
-            last_buy = buy_points[-1]
-            if last_buy.bp_type == BuyPointType.FIRST_BUY:
-                bi4 = recent_bis[-1]
-                if bi4.direction == BiDirection.UP:
-                    # 检查是否形成二买
-                    if len(self.bis) >= 5:
-                        bi5 = recent_bis[-2]
-                        if bi5.end_price > bi3.end_price:
-                            buy_points.append(BuyPoint(
-                                idx=bi5.end_idx,
-                                price=bi5.end_price,
-                                bp_type=BuyPointType.SECOND_BUY,
-                                confidence=0.75,
-                                description="二买：一买后回调不创新低"
-                            ))
-        
-        # 三买：突破中枢后回抽不进入中枢
-        if recent_zhongshu and len(recent_bis) >= 2:
-            last_bi = recent_bis[-1]
-            prev_bi = recent_bis[-2]
-            
-            # 向上突破中枢
-            if prev_bi.direction == BiDirection.UP and prev_bi.end_price > recent_zhongshu.zg:
-                # 回抽不进入中枢
-                if last_bi.direction == BiDirection.DOWN and last_bi.end_price > recent_zhongshu.zg:
-                    buy_points.append(BuyPoint(
-                        idx=last_bi.end_idx,
-                        price=last_bi.end_price,
+                        idx=bi_pullback.end_idx,
+                        price=bi_pullback.end_price,
                         bp_type=BuyPointType.THIRD_BUY,
                         confidence=0.85,
-                        description=f"三买：突破中枢{recent_zhongshu.zg:.2f}后回抽不进入"
+                        description=f"三买：突破中枢{zs.zg:.2f}后回抽不进入（回抽价{bi_pullback.end_price:.2f}）"
                     ))
-        
-        # 一卖：上涨趋势背驰
-        if len(recent_bis) >= 3:
-            bi1, bi2, bi3 = recent_bis[-3], recent_bis[-2], recent_bis[-1]
-            
-            if bi1.direction == BiDirection.UP and bi2.direction == BiDirection.DOWN and bi3.direction == BiDirection.UP:
-                if bi3.height < bi1.height * 0.8:
+                    break  # 只取最近一个
+
+        # ===== 三卖：跌破中枢后回抽不进入中枢 =====
+        if self.zhongshus:
+            zs = self.zhongshus[-1]
+            for i in range(max(0, n - 3), n - 1):
+                bi_down = self.bis[i]
+                bi_pullback = self.bis[i + 1]
+                if (bi_down.direction == BiDirection.DOWN
+                        and bi_pullback.direction == BiDirection.UP
+                        and bi_down.end_price < zs.zd
+                        and bi_pullback.end_price < zs.zd):
                     buy_points.append(BuyPoint(
-                        idx=bi3.end_idx,
-                        price=bi3.end_price,
-                        bp_type=BuyPointType.FIRST_SELL,
-                        confidence=0.80,
-                        description=f"一卖：上涨趋势背驰，第一笔高度{bi1.height:.2f}，第三笔高度{bi3.height:.2f}"
-                    ))
-        
-        # 二卖：一卖后的反弹不创新高
-        if len(recent_bis) >= 4 and any(bp.bp_type == BuyPointType.FIRST_SELL for bp in buy_points):
-            bi4 = recent_bis[-1]
-            if bi4.direction == BiDirection.DOWN:
-                if len(self.bis) >= 5:
-                    bi5 = recent_bis[-2]
-                    if bi5.end_price < bi3.end_price:
-                        buy_points.append(BuyPoint(
-                            idx=bi5.end_idx,
-                            price=bi5.end_price,
-                            bp_type=BuyPointType.SECOND_SELL,
-                            confidence=0.75,
-                            description="二卖：一卖后反弹不创新高"
-                        ))
-        
-        # 三卖：跌破中枢后回抽不进入中枢
-        if recent_zhongshu and len(recent_bis) >= 2:
-            last_bi = recent_bis[-1]
-            prev_bi = recent_bis[-2]
-            
-            if prev_bi.direction == BiDirection.DOWN and prev_bi.end_price < recent_zhongshu.zd:
-                if last_bi.direction == BiDirection.UP and last_bi.end_price < recent_zhongshu.zd:
-                    buy_points.append(BuyPoint(
-                        idx=last_bi.end_idx,
-                        price=last_bi.end_price,
+                        idx=bi_pullback.end_idx,
+                        price=bi_pullback.end_price,
                         bp_type=BuyPointType.THIRD_SELL,
                         confidence=0.85,
-                        description=f"三卖：跌破中枢{recent_zhongshu.zd:.2f}后回抽不进入"
+                        description=f"三卖：跌破中枢{zs.zd:.2f}后回抽不进入（回抽价{bi_pullback.end_price:.2f}）"
                     ))
-        
-        return buy_points
+                    break  # 只取最近一个
+
+        # 按 idx 排序并去重（同一位置只保留最高置信度的）
+        buy_points.sort(key=lambda bp: bp.idx)
+        seen = set()
+        unique = []
+        for bp in buy_points:
+            if bp.idx not in seen:
+                seen.add(bp.idx)
+                unique.append(bp)
+        return unique
     
     def _get_current_trend(self) -> str:
         """获取当前趋势"""

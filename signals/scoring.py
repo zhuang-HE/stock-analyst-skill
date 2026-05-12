@@ -58,14 +58,17 @@ class SignalResonanceScorer:
     
     def __init__(self):
         # 各维度权重配置
+        # 缠论从0.10提升至0.15（缠论背驰/买卖点信号精度较高）
+        # 基本面从0.15降至0.10（对短期交易参考价值有限）
+        # 技术指标提升至0.25（MACD/RSI/均线等核心信号）
         self.weights = {
-            SignalType.CANDLESTICK: 0.20,
-            SignalType.TECHNICAL: 0.20,
+            SignalType.CANDLESTICK: 0.15,
+            SignalType.TECHNICAL: 0.25,
             SignalType.TREND: 0.15,
             SignalType.VOLUME: 0.10,
-            SignalType.FUNDAMENTAL: 0.15,
+            SignalType.FUNDAMENTAL: 0.10,
             SignalType.SENTIMENT: 0.10,
-            SignalType.CHANLUN: 0.10
+            SignalType.CHANLUN: 0.15
         }
         
         # 共振阈值
