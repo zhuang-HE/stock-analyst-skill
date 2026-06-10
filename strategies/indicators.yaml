@@ -1,0 +1,204 @@
+# 技术指标策略配置 v1.0
+# 定义所有技术指标的计算参数和信号阈值
+# 修改此文件即可调整策略参数，无需改动代码
+
+indicators:
+  ma:
+    description: "移动均线系统"
+    periods: [5, 10, 20, 60]
+    signals:
+      trend:
+        - name: "上升趋势"
+          condition: "ma5 > ma20 > ma60"
+          score: 20
+        - name: "下降趋势"
+          condition: "ma5 < ma20 < ma60"
+          score: -20
+        - name: "震荡偏强"
+          condition: "ma5 > ma20"
+          score: 10
+        - name: "震荡偏弱"
+          condition: "ma5 <= ma20"
+          score: -10
+      cross:
+        - name: "MA5上穿MA20（短期金叉）"
+          condition: "ma5_cross_above_ma20"
+          score: 15
+          description: "短线趋势转强"
+        - name: "MA5下穿MA20（短期死叉）"
+          condition: "ma5_cross_below_ma20"
+          score: -15
+          description: "短线趋势转弱"
+      support:
+        - name: "价格站上MA60（中期支撑确认）"
+          condition: "price > ma60"
+          score: 10
+        - name: "价格跌破MA60（中期支撑失守）"
+          condition: "price < ma60"
+          score: -10
+
+  rsi:
+    description: "相对强弱指标 RSI(14)"
+    period: 14
+    signals:
+      overbought:
+        - name: "严重超买"
+          condition: "rsi > 80"
+          score: -20
+          action: "警惕回调"
+        - name: "超买"
+          condition: "rsi > 70"
+          score: -10
+          action: "短期可能回调"
+      oversold:
+        - name: "严重超卖"
+          condition: "rsi < 20"
+          score: 20
+          action: "可能反弹"
+        - name: "超卖"
+          condition: "rsi < 30"
+          score: 10
+          action: "关注反弹机会"
+      divergence:
+        - name: "RSI底背离（价格新低但RSI未新低）"
+          condition: "rsi_bullish_divergence"
+          score: 15
+          description: "下跌动能衰竭"
+        - name: "RSI顶背离（价格新高但RSI未新高）"
+          condition: "rsi_bearish_divergence"
+          score: -15
+          description: "上涨动能衰竭"
+
+  kdj:
+    description: "随机指标 KDJ(9,3,3)"
+    k_period: 9
+    d_period: 3
+    signals:
+      overbought:
+        - name: "超买区"
+          condition: "k > 80"
+          score: -15
+        - name: "严重超买"
+          condition: "k > 90"
+          score: -20
+          additional: "J值钝化"
+      oversold:
+        - name: "超卖区"
+          condition: "k < 20"
+          score: 15
+        - name: "严重超卖"
+          condition: "k < 10"
+          score: 20
+          additional: "J值钝化"
+      cross:
+        - name: "KDJ金叉"
+          condition: "k_cross_above_d"
+          score: 5
+        - name: "KDJ死叉"
+          condition: "k_cross_below_d"
+          score: -5
+      j_signal:
+        - name: "J值超买（>100）"
+          condition: "j > 100"
+          score: -10
+          description: "极端超买，随时可能反转"
+        - name: "J值超卖（<0）"
+          condition: "j < 0"
+          score: 10
+          description: "极端超卖，可能反弹"
+
+  macd:
+    description: "指数平滑异同移动平均线 MACD(12,26,9)"
+    fast: 12
+    slow: 26
+    signal: 9
+    signals:
+      trend:
+        - name: "多头趋势（DIF>DEA且DIF>0）"
+          condition: "macd_dif > macd_dea and macd_dif > 0"
+          score: 15
+          description: "上涨趋势确认"
+        - name: "空头趋势（DIF<DEA且DIF<0）"
+          condition: "macd_dif < macd_dea and macd_dif < 0"
+          score: -15
+          description: "下跌趋势确认"
+        - name: "MACD盘整"
+          condition: "macd_dif around macd_dea"
+          score: 0
+      cross:
+        - name: "MACD金叉（DIF上穿DEA）"
+          condition: "macd_golden_cross"
+          score: 15
+          description: "趋势转多信号"
+        - name: "MACD死叉（DIF下穿DEA）"
+          condition: "macd_death_cross"
+          score: -15
+          description: "趋势转空信号"
+      histogram:
+        - name: "红柱放大（多头动能增强）"
+          condition: "macd_hist_increasing_positive"
+          score: 10
+        - name: "绿柱放大（空头动能增强）"
+          condition: "macd_hist_increasing_negative"
+          score: -10
+        - name: "红柱缩小（多头动能在减弱）"
+          condition: "macd_hist_decreasing_positive"
+          score: -5
+      divergence:
+        - name: "MACD底背离"
+          condition: "macd_bullish_divergence"
+          score: 20
+          description: "价格新低但MACD未新低，下跌衰竭"
+        - name: "MACD顶背离"
+          condition: "macd_bearish_divergence"
+          score: -20
+          description: "价格新高但MACD未新高，上涨衰竭"
+
+  bollinger:
+    description: "布林带 BOLL(20,2)"
+    period: 20
+    std_dev: 2
+    signals:
+      position:
+        - name: "触及上轨（超买压力）"
+          condition: "price > boll_upper * 0.98"
+          score: -10
+          description: "短期可能回调"
+        - name: "触及下轨（超卖支撑）"
+          condition: "price < boll_lower * 1.02"
+          score: 10
+          description: "短期可能反弹"
+        - name: "中轨上方（偏强）"
+          condition: "price > boll_mid"
+          score: 5
+        - name: "中轨下方（偏弱）"
+          condition: "price < boll_mid"
+          score: -5
+      squeeze:
+        - name: "布林带收窄（变盘预警）"
+          condition: "boll_bandwidth < 10"
+          score: 0
+          additional: "即将选择方向，等待突破确认"
+        - name: "布林带扩张（趋势延续）"
+          condition: "boll_bandwidth > 25"
+          score: 0
+          additional: "趋势强度增加，顺势操作"
+
+  volume:
+    description: "成交量辅助指标"
+    signals:
+      abnormal:
+        - name: "放量上涨（资金主动进场）"
+          condition: "volume > avg_volume_20 * 1.5 and close > prev_close"
+          score: 10
+        - name: "放量下跌（资金主动出逃）"
+          condition: "volume > avg_volume_20 * 1.5 and close < prev_close"
+          score: -15
+        - name: "缩量上涨（上攻乏力）"
+          condition: "volume < avg_volume_20 * 0.5 and close > prev_close"
+          score: -5
+          description: "量能不足，反弹持续性存疑"
+        - name: "缩量下跌（抛压减轻）"
+          condition: "volume < avg_volume_20 * 0.5 and close < prev_close"
+          score: 5
+          description: "抛压减轻，可能止跌"

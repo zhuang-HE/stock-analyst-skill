@@ -1,0 +1,67 @@
+# 缠论策略配置 v1.0
+# 定义缠论分析的参数和买卖点判定规则
+
+chanlun:
+  description: "缠论分析 — 基于分型/笔/中枢的买卖点识别"
+
+  # 包含关系处理
+  kline_merge:
+    consecutive_limit: 5  # 最多连续包含K线数量
+
+  # 分型定义
+  fenxing:
+    description: "顶分型/底分型识别"
+    min_confirm_kline: 1  # 分型确认需要的最少后续K线
+
+  # 笔的定义
+  bi:
+    description: "笔 — 相邻顶底分型之间的走势"
+    min_kline_between: 5  # 相邻分型间最少K线数
+    min_amplitude: 0.03   # 最小振幅（3%），低于此的不构成笔
+
+  # 中枢定义
+  zhongshu:
+    description: "中枢 — 至少三段次级别走势的重叠区域"
+    min_bi_count: 3       # 最少需要3笔
+    overlap_method: "min_max"  # 重叠区间取法: min_max / avg
+
+  # 买卖点定义
+  buy_points:
+    一买:
+      description: "下跌趋势底背驰后第一个买点，风险最大但潜在收益最高"
+      required:
+        - "下跌趋势结构完成（至少2个中枢）"
+        - "底背驰确认（MACD面积/柱子面积比较）"
+      confidence: 0.85
+      position_suggestion: "轻仓试探（10-15%）"
+    二买:
+      description: "一买反弹后回调不破一买低点，安全性高于一买"
+      required:
+        - "一买已确认"
+        - "回调不破一买低点"
+        - "次级别背驰"
+      confidence: 0.90
+      position_suggestion: "正常建仓（20-30%）"
+    三买:
+      description: "中枢突破后回调不落入中枢，强势确认"
+      required:
+        - "中枢已形成"
+        - "突破中枢上沿"
+        - "回调不落入中枢区间"
+      confidence: 0.80
+      position_suggestion: "回踩加仓（15-20%）"
+    类二买:
+      description: "中枢震荡中的买点，震荡市专用"
+      required:
+        - "中枢内震荡"
+        - "接近中枢下沿"
+        - "次级别底分型"
+      confidence: 0.70
+      position_suggestion: "轻仓波段（10%）"
+
+  # 仓位建议规则
+  position_rules:
+    three_buy_overlap: "三类买点同时出现 → 重仓 50-70%"
+    two_buy_overlap: "两类买点同时出现 → 中仓 30-50%"
+    single_buy: "单一买点 → 轻仓 10-25%"
+    no_buy_point: "无买点 → 不可建仓，已持仓需设止损"

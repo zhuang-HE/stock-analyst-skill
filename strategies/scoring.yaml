@@ -1,0 +1,77 @@
+# 信号共振评分配置 v1.0
+# 定义各维度信号的权重和共振级别阈值
+
+weights:
+  technical:
+    description: "技术面信号"
+    weight: 35
+    sub_weights:
+      ma: 25
+      rsi: 20
+      kdj: 20
+      macd: 25
+      bollinger: 10
+
+  candlestick:
+    description: "K线形态信号"
+    weight: 15
+    bullish_multiplier: 1.2  # 看涨信号加强系数
+    bearish_multiplier: -1.2  # 看跌信号加强系数
+    min_confidence: 0.5        # 最低可信度阈值
+
+  chanlun:
+    description: "缠论信号"
+    weight: 20
+    buy_point_scores:
+      一买: 25
+      二买: 20
+      三买: 15
+      类二买: 12
+
+  volume:
+    description: "成交量信号"
+    weight: 10
+
+  fundamental:
+    description: "基本面信号"
+    weight: 10
+    roe_thresholds:
+      excellent: 20    # ROE >= 20
+      good: 15         # ROE >= 15
+      normal: 10       # ROE >= 10
+    growth_thresholds:
+      strong: 30       # 净利润增速 >= 30%
+      moderate: 10     # 净利润增速 >= 10%
+
+  money_flow:
+    description: "资金流向信号"
+    weight: 10
+    net_inflow_positive: 10
+    net_inflow_negative: -10
+
+resonance_levels:
+  - name: "极强共振"
+    min_score: 15
+    description: "多个维度信号高度一致，方向明确"
+    confidence: 0.90
+    color: "#00AA00"
+  - name: "强共振"
+    min_score: 8
+    description: "多数维度信号一致，可操作性高"
+    confidence: 0.75
+    color: "#22CC22"
+  - name: "中等共振"
+    min_score: 3
+    description: "部分维度信号一致，需验证"
+    confidence: 0.60
+    color: "#888888"
+  - name: "弱共振"
+    min_score: 0
+    description: "信号分散，方向不明"
+    confidence: 0.40
+    color: "#CC8800"
+  - name: "无共振"
+    min_score: -999
+    description: "信号矛盾，建议观望"
+    confidence: 0.25
+    color: "#CC2222"

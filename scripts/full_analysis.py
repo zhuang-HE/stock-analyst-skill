@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-股票完整分析 - 统一版 v4.0
+股票完整分析 - v5.0 决策仪表盘版
 
-架构变更：
-- 数据层：由外部（tushare-data skill）通过 JSON 文件传入，不再自行获取
-- 分析层：技术指标 + K线形态 + 缠论 + 信号共振 + 情绪指数 + 基本面评分 + 综合建议
-- 输出：完整 JSON
+架构变更 (v5.0)：
+- 新增 买卖点位计算（基于缠论/布林带/均线/斐波那契）
+- 新增 决策仪表盘输出格式（core_conclusion/data_perspective/intelligence/battle_plan）
+- 保留 原有完整 JSON 输出（--format json）
+- 数据层：由外部（tushare-data skill）通过 JSON 文件传入
+- 分析层：技术指标 + K线形态 + 缠论 + 信号共振 + 情绪指数 + 基本面 + 资金面 + 买卖点
 
 用法：
-  python full_analysis.py <data_json_path> [code]
+  python full_analysis.py <data_json_path> [code] [--format dashboard|json]
   - data_json_path: tushare-data 预取的 JSON 数据文件路径
   - code: 股票代码（6位数字），如果不传则从数据文件中读取
+  - --format: 输出格式，默认 dashboard（决策仪表盘），可选 json（v4 兼容格式）
 """
 import sys
 import io
@@ -32,6 +35,9 @@ from patterns import CandlestickPatternRecognizer, ChanlunAnalyzer
 from signals import SignalResonanceScorer
 from ai_models import SentimentIndexCalculator
 from signals.scoring import SignalType, SignalDirection, Signal
+from signals.trade_points import TradePointCalculator
+from dashboard_report import DashboardReportBuilder
+from strategies import StrategyLoader, load_strategies
 
 
 class StockAnalyzer:
@@ -54,7 +60,8 @@ class StockAnalyzer:
     }
 
     def __init__(self):
-        pass
+        """初始化分析器，加载策略配置"""
+        self.strategy_loader = load_strategies()
 
     def _safe_float(self, val, default=0.0):
         if val is None or (isinstance(val, float) and np.isnan(val)):
@@ -132,8 +139,16 @@ class StockAnalyzer:
             # 10. 盈利预测
             result['forecast'] = self._analyze_forecast(data.get('forecast'))
 
-            # 11. 综合建议
+            # 11. 综合建议（传统格式）
             result['suggestion'] = self._generate_suggestion(result)
+
+            # 12. 买卖点位计算（v5.0 新增）
+            result['trade_points'] = self._calculate_trade_points(
+                df_with_indicators, result
+            )
+
+            # 13. 决策仪表盘（v5.0 新增）
+            result['dashboard'] = self._build_dashboard(result, code)
 
             result['success'] = True
 
@@ -273,40 +288,78 @@ class StockAnalyzer:
         df['boll_upper'] = df['boll_mid'] + 2 * boll_std
         df['boll_lower'] = df['boll_mid'] - 2 * boll_std
 
-        # 提取分析结果
+        # 提取分析结果（传统方式 + YAML策略增强）
         latest = df.iloc[-1]
+        prev = df.iloc[-2] if len(df) > 1 else latest
         price = latest['close']
 
-        # 趋势判断
-        ma5 = latest['ma5']
-        ma20 = latest['ma20']
-        ma60 = latest.get('ma60', ma20)
-        if pd.isna(ma60):
-            ma60 = ma20
+        # 构建策略评估数据
+        ma5 = float(latest['ma5'])
+        ma10 = float(latest['ma10'])
+        ma20 = float(latest['ma20'])
+        ma60 = float(latest.get('ma60', ma20)) if not pd.isna(latest.get('ma60', ma20)) else ma20
 
-        if ma5 > ma20 > ma60:
-            trend, trend_score = '上升趋势', 20
-        elif ma5 < ma20 < ma60:
-            trend, trend_score = '下降趋势', -20
-        elif ma5 > ma20:
-            trend, trend_score = '震荡偏强', 10
+        eval_data = {
+            'price': float(price),
+            'ma5': ma5, 'ma10': ma10, 'ma20': ma20, 'ma60': ma60,
+            'ma5_prev': float(prev.get('ma5', ma5)),
+            'ma20_prev': float(prev.get('ma20', ma20)),
+            'rsi': float(latest['rsi']),
+            'k': float(latest['k']), 'd': float(latest['d']), 'j': float(latest['j']),
+            'k_prev': float(prev.get('k', 50)), 'd_prev': float(prev.get('d', 50)),
+            'macd_dif': float(latest['macd_dif']), 'macd_dea': float(latest['macd_dea']),
+            'macd_hist': float(latest['macd_hist']),
+            'macd_dif_prev': float(prev.get('macd_dif', 0)), 'macd_dea_prev': float(prev.get('macd_dea', 0)),
+            'macd_hist_prev': float(prev.get('macd_hist', 0)),
+            'boll_upper': float(latest['boll_upper']), 'boll_mid': float(latest['boll_mid']),
+            'boll_lower': float(latest['boll_lower']),
+            'boll_bandwidth': float((latest['boll_upper'] - latest['boll_lower']) / latest['boll_mid'] * 100 if latest['boll_mid'] > 0 else 20),
+            'volume': int(latest.get('volume', 0)), 'close': float(price), 'prev_close': float(prev['close']),
+        }
+        # 20日均量
+        if len(df) >= 20:
+            eval_data['avg_volume_20'] = int(df['volume'].tail(20).mean())
+            eval_data['avg_volume_20'] = max(eval_data['avg_volume_20'], 0)
+        else:
+            eval_data['avg_volume_20'] = eval_data['volume']
+
+        # 背离检测
+        if len(df) >= 20:
+            eval_data.update(self._detect_divergences(df))
+
+        # 使用 YAML 策略引擎评估信号
+        strategy_signals = self.strategy_loader.evaluate_all_signals(eval_data)
+
+        # 趋势判断（从 YAML 策略信号中提取）
+        ma_signals = strategy_signals['by_category'].get('ma', [])
+        trend_signals = [s for s in ma_signals if s.get('group') == 'trend']
+        if trend_signals:
+            trend = trend_signals[0]['name']
+            trend_score = trend_signals[0]['score']
         else:
             trend, trend_score = '震荡偏弱', -10
 
         # KDJ 信号
-        k, d_val = latest['k'], latest['d']
-        if k > 80:
-            kdj_signal, kdj_score = '超买区', -15
-        elif k < 20:
-            kdj_signal, kdj_score = '超卖区', 15
-        elif k > d_val:
-            kdj_signal, kdj_score = '金叉', 5
+        kdj_signals = strategy_signals['by_category'].get('kdj', [])
+        kdj_ob = [s for s in kdj_signals if s.get('group') in ('overbought', 'oversold')]
+        kdj_cross = [s for s in kdj_signals if s.get('group') == 'cross']
+        if kdj_ob:
+            kdj_signal = kdj_ob[0]['name']
+            kdj_score = kdj_ob[0]['score']
+        elif kdj_cross:
+            kdj_signal = kdj_cross[0]['name']
+            kdj_score = kdj_cross[0]['score']
         else:
             kdj_signal, kdj_score = '死叉', -5
 
         # RSI 信号
-        rsi = latest['rsi']
-        if rsi > 70:
+        rsi_signals = strategy_signals['by_category'].get('rsi', [])
+        rsi_ob = [s for s in rsi_signals if s.get('group') in ('overbought', 'oversold')]
+        rsi = float(latest['rsi'])
+        if rsi_ob:
+            rsi_signal = rsi_ob[0]['name']
+            rsi_score = rsi_ob[0]['score']
+        elif rsi > 70:
             rsi_signal, rsi_score = '超买', -10
         elif rsi < 30:
             rsi_signal, rsi_score = '超卖', 10
@@ -314,14 +367,20 @@ class StockAnalyzer:
             rsi_signal, rsi_score = '正常', 0
 
         # MACD 信号
-        macd_dif = latest['macd_dif']
-        macd_dea = latest['macd_dea']
-        if macd_dif > macd_dea and macd_dif > 0:
-            macd_signal, macd_score = '多头', 10
-        elif macd_dif < macd_dea and macd_dif < 0:
-            macd_signal, macd_score = '空头', -10
+        macd_signals = strategy_signals['by_category'].get('macd', [])
+        macd_trend_sigs = [s for s in macd_signals if s.get('group') == 'trend']
+        if macd_trend_sigs:
+            macd_signal = macd_trend_sigs[0]['name']
+            macd_score = macd_trend_sigs[0]['score']
         else:
-            macd_signal, macd_score = '盘整', 0
+            macd_dif = float(latest['macd_dif'])
+            macd_dea = float(latest['macd_dea'])
+            if macd_dif > macd_dea and macd_dif > 0:
+                macd_signal, macd_score = '多头', 10
+            elif macd_dif < macd_dea and macd_dif < 0:
+                macd_signal, macd_score = '空头', -10
+            else:
+                macd_signal, macd_score = '盘整', 0
 
         tech_result = {
             'ma5': round(float(ma5), 2),
@@ -350,10 +409,53 @@ class StockAnalyzer:
                 'kdj': kdj_score,
                 'rsi': rsi_score,
                 'macd': macd_score
+            },
+            'strategy_signals': {
+                'net_score': strategy_signals['net_score'],
+                'signal_count': strategy_signals['signal_count'],
+                'resonance_level': strategy_signals['resonance_level']['name'] if strategy_signals.get('resonance_level') else '',
+                'by_category': {
+                    cat: [{'name': s['name'], 'score': s['score']} for s in sigs]
+                    for cat, sigs in strategy_signals['by_category'].items()
+                }
             }
         }
 
         return tech_result, df
+
+    def _detect_divergences(self, df: pd.DataFrame) -> dict:
+        """检测RSI和MACD背离"""
+        result = {'rsi_divergence': 'none', 'macd_divergence': 'none'}
+        if len(df) < 30:
+            return result
+
+        # RSI 背离检测（最近30日）
+        recent = df.tail(30)
+        price_low = recent['close'].min()
+        price_high = recent['close'].max()
+        rsi_low = recent['rsi'].min()
+        rsi_high = recent['rsi'].max()
+
+        # 底背离：价格创近期新低但RSI未创新低
+        if price_low == recent['close'].iloc[-1]:
+            rsi_before_low = recent['rsi'].iloc[:-5].min() if len(recent) >= 10 else rsi_low
+            if rsi_low > rsi_before_low * 0.95:
+                result['rsi_divergence'] = 'bullish'
+        # 顶背离：价格创近期新高但RSI未创新高
+        if price_high == recent['close'].iloc[-1]:
+            rsi_before_high = recent['rsi'].iloc[:-5].max() if len(recent) >= 10 else rsi_high
+            if rsi_high < rsi_before_high * 1.05:
+                result['rsi_divergence'] = 'bearish'
+
+        # MACD 背离检测
+        macd_hist = recent['macd_hist'].values
+        if len(macd_hist) >= 10:
+            if macd_hist[-1] > macd_hist.min() and price_low == recent['close'].iloc[-1]:
+                result['macd_divergence'] = 'bullish'
+            if macd_hist[-1] < macd_hist.max() and price_high == recent['close'].iloc[-1]:
+                result['macd_divergence'] = 'bearish'
+
+        return result
 
     # ==================== 3. K线形态识别 ====================
     def _analyze_patterns(self, df: pd.DataFrame) -> dict:
@@ -1069,22 +1171,30 @@ class StockAnalyzer:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(json.dumps({'error': '用法: python full_analysis.py <data_json_path> [code]'}, ensure_ascii=False, indent=2))
-        return
+    import argparse
 
-    data_path = sys.argv[1]
-    code = sys.argv[2] if len(sys.argv) >= 3 else None
+    parser = argparse.ArgumentParser(description='股票完整分析 v5.0')
+    parser.add_argument('data_path', nargs='?', help='tushare-data 预取的 JSON 数据文件路径')
+    parser.add_argument('code', nargs='?', default=None, help='股票代码（6位数字）')
+    parser.add_argument('--format', choices=['dashboard', 'json'], default='dashboard',
+                        help='输出格式：dashboard=决策仪表盘（默认）, json=v4兼容格式')
+    args = parser.parse_args()
+
+    if not args.data_path:
+        print(json.dumps({'error': '用法: python full_analysis.py <data_json_path> [code] [--format dashboard|json]'},
+                         ensure_ascii=False, indent=2))
+        return
 
     # 读取预取数据
     try:
-        with open(data_path, 'r', encoding='utf-8') as f:
+        with open(args.data_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except Exception as e:
         print(json.dumps({'error': f'读取数据文件失败: {e}'}, ensure_ascii=False, indent=2))
         return
 
     # 从数据中提取 code
+    code = args.code
     if code is None:
         code = data.get('code', data.get('ts_code', ''))
         if '.' in code:
@@ -1107,7 +1217,11 @@ def main():
             return None
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=json_serializer))
+    # 根据格式输出
+    if args.format == 'dashboard' and 'dashboard' in result and 'error' not in result.get('dashboard', {}):
+        print(json.dumps(result['dashboard'], ensure_ascii=False, indent=2, default=json_serializer))
+    else:
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=json_serializer))
 
 
 if __name__ == '__main__':
